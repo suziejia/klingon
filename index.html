@@ -1,0 +1,3156 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Klingon</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23242B28'/%3E%3Ccircle cx='32' cy='32' r='11' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+/* ============================================================
+   Klingon ・ 認知與輸出系統（最終版）
+   Perplexity 紙白 × 雜誌卡片 × 打孔票根 × 沉浸抽屜
+   ============================================================ */
+:root {
+  --bg-paper: #FBFAF4;
+  --bg-sidebar: #F8F7F0;
+  --bg-card: #FFFFFF;
+  --border-ecru: #E6E2D4;
+  --sage: #EEF3EE;
+  --text-main: #242B28;
+  --text-body: #424C49;
+  --text-muted: #798784;
+  --accent: #20808D;
+  --accent-deep: #345C4B;
+  --accent-soft: rgba(32, 128, 141, 0.08);
+  --stamp-red: #D24738;
+  --ticket-bg: #F5F3E9;
+  --serif: Georgia, Charter, "Noto Serif SC", "Noto Serif TC", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { height: 100%; }
+body {
+  min-height: 100vh;
+  background: var(--bg-paper);
+  color: var(--text-main);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--accent-soft); }
+button { font-family: inherit; border: 0; background: none; cursor: pointer; color: inherit; }
+input, textarea { font-family: inherit; color: var(--text-main); }
+svg { display: block; }
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* ================= 空間景深 ================= */
+.app {
+  display: flex; min-height: 100vh;
+  transform-origin: 50% 0;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+body.scene-dim .app { transform: scale(0.975); filter: brightness(0.92); }
+
+/* ================= 側欄 ================= */
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-ecru);
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 22px;
+  position: sticky; top: 0; height: 100vh;
+  transition: width .28s cubic-bezier(.3,.8,.3,1);
+  overflow: hidden; z-index: 40;
+}
+body.sb-min .sidebar { width: 64px; padding: 16px 10px; }
+
+.sb-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand span { font-size: 15px; font-weight: 600; color: var(--text-main); white-space: nowrap; }
+.brand .ver {
+  font-style: normal; font-size: 9px; font-weight: 700; color: #20808D;
+  background: var(--accent-soft); border-radius: 4px; padding: 1px 4px;
+  vertical-align: 2px; margin-left: 2px; letter-spacing: .02em;
+}
+.sb-actions { display: flex; gap: 4px; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: grid; place-items: center; color: var(--text-muted);
+  transition: background .18s, color .18s;
+}
+.icon-btn:hover { background: rgba(0,0,0,.05); color: var(--text-main); }
+
+.routine { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.routine::before {
+  content: ""; position: absolute; left: 23px; top: 20px; bottom: 20px;
+  width: 1.5px; background: var(--border-ecru);
+}
+.rt-item {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
+  font-size: 14px; font-weight: 500; color: var(--text-body);
+  transition: background .18s, color .18s; text-align: left; white-space: nowrap;
+}
+.rt-item:hover { color: var(--text-main); }
+.rt-item.active { background: #EBEBE6; color: var(--text-main); }
+.rt-ico {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  background: var(--bg-sidebar); z-index: 1;
+  display: grid; place-items: center; color: var(--text-muted);
+  transition: background .18s, color .18s;
+}
+.rt-item.active .rt-ico { background: #EBEBE6; color: var(--accent); }
+.rt-num { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.rt-item.active .rt-num { color: var(--text-main); }
+
+.sb-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+.foot-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; color: var(--text-muted); white-space: nowrap;
+  transition: background .18s, color .18s; text-align: left;
+}
+.foot-link:hover { background: rgba(0,0,0,.04); color: var(--text-main); }
+.foot-link.armed { color: var(--stamp-red); font-weight: 600; }
+
+/* ================= 主舞台 ================= */
+.stage { flex: 1; min-width: 0; padding: 34px 24px 90px; }
+.view { max-width: 620px; margin: 0 auto; }
+
+.view-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.page-title, .head-left h2 {
+  font-family: var(--serif); font-size: 19px; font-weight: 600;
+  letter-spacing: -.01em; white-space: nowrap; color: var(--text-main);
+}
+.head-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.badge {
+  width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.clock-line { font-size: 13px; color: var(--text-muted); }
+
+.btn-accent-o {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--accent); color: var(--accent);
+  font-size: 12.5px; font-weight: 500;
+  padding: 7px 14px; border-radius: 9px; background: transparent;
+  transition: background .18s, color .18s, transform .18s;
+  white-space: nowrap;
+}
+.btn-accent-o:hover { background: var(--accent); color: #fff; transform: translateY(-1px); }
+.btn-accent-o:active { transform: scale(.97); }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-ecru);
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(60, 60, 40, 0.03);
+}
+
+/* ================= 晨間 ================= */
+.todo-card { padding: 18px 20px 8px; }
+.todo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; }
+.todo-head-left { display: flex; align-items: center; gap: 10px; }
+.sun-badge {
+  width: 32px; height: 32px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--accent-soft);
+  transition: background .6s;
+}
+.sun-badge.full { background: rgba(255, 210, 166, 0.5); }
+.todo-head-right { display: flex; align-items: center; gap: 10px; }
+.todo-head-right .num { font-size: 13px; color: var(--text-muted); }
+
+.t-list { list-style: none; position: relative; }
+.t-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 26px 11px 0; border-top: 1px solid rgba(230, 226, 212, .55);
+  position: relative;
+  transition: opacity .25s, transform .25s;
+  user-select: none; -webkit-user-select: none;
+}
+.t-row.dragging {
+  opacity: .5; background: var(--bg-card);
+  box-shadow: 0 10px 26px rgba(40, 50, 45, .16);
+  border-radius: 12px; z-index: 5;
+  transition: opacity .2s, box-shadow .2s;
+}
+.drop-line {
+  position: absolute; left: 6px; right: 6px; height: 2px;
+  border-radius: 2px; background: var(--accent);
+  opacity: 0; pointer-events: none; z-index: 4;
+  transition: transform .12s ease, opacity .12s;
+}
+.t-row.leaving { opacity: 0; transform: translateX(10px); }
+.t-row:first-child { border-top: 0; }
+.t-chk { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; transition: transform .15s; }
+.t-chk:hover { transform: scale(1.08); }
+.t-chk:active { transform: scale(.92); }
+.t-row.done .t-chk svg .fill-c { animation: popIn .3s cubic-bezier(.2,.9,.3,1.3) both; }
+.t-chk svg path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.t-row.done .t-chk svg path { animation: draw .35s ease .05s both; }
+@keyframes popIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.t-text { flex: 1; font-size: 14px; color: var(--text-body); line-height: 1.55; min-width: 0; overflow-wrap: anywhere; transition: color .35s; }
+.t-row.done .t-text { color: var(--text-muted); text-decoration: line-through; text-decoration-color: rgba(121, 135, 132, .5); }
+.t-pin { color: var(--accent); flex-shrink: 0; display: none; }
+.t-row.pinned .t-pin { display: block; }
+.t-edit-input {
+  flex: 1; min-width: 0; border: 0; border-bottom: 1.5px solid var(--accent);
+  outline: none; background: transparent; font-size: 14px; padding: 2px 0;
+}
+.t-more {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center;
+  color: var(--text-muted); font-size: 14px; letter-spacing: 1px; font-weight: 700;
+  opacity: 0; transition: opacity .15s, background .15s, color .15s;
+}
+.t-row:hover .t-more, .t-more:focus-visible { opacity: 1; }
+.t-more:hover { background: rgba(0,0,0,.06); color: var(--text-main); }
+.t-empty { padding: 14px 0; font-size: 12.5px; color: var(--text-muted); }
+
+.quick-add { display: flex; border-top: 1px solid rgba(230,226,212,.55); margin-top: 2px; }
+.quick-add input { flex: 1; border: 0; outline: none; background: transparent; padding: 12px 2px; font-size: 13.5px; }
+.quick-add input::placeholder { color: #ADB6B1; }
+.quick-add input[data-ghost="1"]::placeholder { color: rgba(36, 43, 40, .35); }
+.quick-add input:disabled { color: var(--text-muted); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.slide-in { animation: slideIn .45s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.view > * { animation: fadeUp .4s cubic-bezier(.2,.7,.3,1) both; }
+.view > *:nth-child(2) { animation-delay: .05s; }
+.view > *:nth-child(3) { animation-delay: .1s; }
+.view > *:nth-child(4) { animation-delay: .15s; }
+
+/* ================= 輸出卡片 ================= */
+.out-stack { display: flex; flex-direction: column; gap: 16px; }
+
+.cat-bar { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; margin-bottom: 16px; }
+.cat-pill {
+  height: 24px; padding: 0 11px; border-radius: 999px;
+  font-size: 12px; line-height: 24px; color: var(--text-muted);
+  transition: color .15s, background .15s;
+}
+.cat-pill:hover { color: var(--text-main); }
+.cat-pill.active { color: var(--text-main); background: var(--sage); }
+
+.mg-card { padding: 20px 22px 16px; transition: box-shadow .25s; }
+.mg-card:hover { box-shadow: 0 5px 20px rgba(60, 60, 40, 0.07); }
+.mg-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mg-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.mg-chip {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+  color: var(--accent-deep); background: var(--sage);
+  border-radius: 6px; padding: 3px 9px; text-transform: uppercase;
+  transition: background .15s, transform .1s;
+}
+.mg-chip:hover { background: #E2EAE2; }
+.mg-chip:active { transform: scale(.96); }
+.mg-date { font-size: 11.5px; color: var(--text-muted); }
+.mg-prog { font-size: 11.5px; color: var(--text-muted); }
+.mg-right { display: flex; align-items: center; gap: 6px; }
+.mg-more {
+  width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center;
+  color: var(--text-muted); font-size: 14px; font-weight: 700; letter-spacing: 1px;
+  opacity: 0; transition: opacity .15s, background .15s, color .15s;
+}
+.mg-card:hover .mg-more, .mg-more:focus-visible { opacity: 1; }
+.mg-more:hover { background: rgba(0, 0, 0, .06); color: var(--text-main); }
+.mini-ico {
+  width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  display: grid; place-items: center; color: var(--text-muted);
+  transition: background .15s, color .15s;
+}
+.mini-ico:hover { background: var(--sage); color: var(--text-main); }
+
+.mg-title {
+  font-family: var(--serif); font-size: 17.5px; font-weight: 600;
+  letter-spacing: -.005em; line-height: 1.5; color: var(--text-main);
+  margin-top: 10px; overflow-wrap: anywhere;
+}
+.mg-excerpt {
+  margin-top: 12px; font-size: 14px; line-height: 1.75; color: var(--text-body);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: pre-line; overflow-wrap: anywhere;
+}
+.mg-guide { margin-top: 12px; font-size: 12.5px; color: var(--text-muted); }
+.mg-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(230, 226, 212, .6);
+}
+.mg-stat { font-size: 11.5px; color: var(--text-muted); }
+.readmore {
+  font-size: 12.5px; font-weight: 600; color: var(--accent);
+  display: flex; align-items: center; gap: 3px;
+  padding: 5px 10px; border-radius: 8px;
+  transition: background .15s, transform .1s;
+}
+.readmore:hover { background: var(--accent-soft); }
+.readmore:active { transform: scale(.97); }
+
+/* 思想展覽打孔票根 */
+.ticket {
+  position: relative; display: flex;
+  background: var(--ticket-bg);
+  border: 1px solid var(--border-ecru);
+  border-radius: 9px; margin-top: 13px;
+}
+.ticket::before, .ticket::after {
+  content: ""; position: absolute; top: 50%; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--bg-paper);
+  border: 1px solid var(--border-ecru);
+  transform: translateY(-50%); z-index: 1;
+}
+.ticket::before { left: -6.5px; }
+.ticket::after { right: -6.5px; }
+.stub {
+  flex: 1; position: relative; min-width: 0;
+  padding: 7px 6px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.stub + .stub { border-left: 1.5px dashed var(--border-ecru); }
+.stub-no { font-size: 8px; font-weight: 600; letter-spacing: .13em; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.stub-state { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; letter-spacing: .06em; color: #A8B0AD; font-variant-numeric: tabular-nums; }
+.stub-state svg { flex-shrink: 0; }
+.stub.state-done .stub-state { color: var(--text-main); }
+.stub.state-now .stub-state { color: var(--accent); }
+.stamp {
+  position: absolute; top: 3px; right: 6px;
+  transform: rotate(-8deg);
+  border: 1.5px solid var(--stamp-red); color: var(--stamp-red);
+  border-radius: 4px; padding: 1px 4px;
+  font-size: 7.5px; font-weight: 700; letter-spacing: .08em;
+  line-height: 1.25; text-align: center; font-variant-numeric: tabular-nums;
+  opacity: .92;
+}
+.stamp.stamp-in { animation: stampIn .38s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes stampIn {
+  0% { opacity: 0; transform: rotate(-24deg) scale(2); }
+  100% { opacity: .92; transform: rotate(-8deg) scale(1); }
+}
+
+/* 歷史歸檔 */
+.archive { margin-top: 16px; overflow: hidden; }
+.archive-toggle {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 13px 16px; font-size: 13px; font-weight: 500; color: var(--text-body);
+  transition: background .18s; text-align: left;
+}
+.archive-toggle:hover { background: rgba(0, 0, 0, .02); }
+.archive-toggle .cnt { color: var(--text-muted); font-weight: 400; }
+.archive-toggle .chev { margin-left: auto; color: var(--text-muted); transition: transform .25s; }
+.archive.open .archive-toggle .chev { transform: rotate(180deg); }
+.archive-list { border-top: 1px solid rgba(230, 226, 212, .6); padding: 4px 16px 10px; }
+.a-row { padding: 9px 0; border-top: 1px solid rgba(230, 226, 212, .5); }
+.a-row:first-child { border-top: 0; }
+.a-row b { display: block; font-size: 13px; font-weight: 600; color: var(--text-main); }
+.a-row i { display: block; font-style: normal; font-size: 11px; color: var(--text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.a-empty { padding: 10px 0; font-size: 12px; color: var(--text-muted); }
+
+/* ================= 閱讀抽屜（三段式信箋） ================= */
+.drawer-wrap { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.dw-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(36, 43, 40, .32);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity .3s;
+}
+.drawer {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: min(560px, 94vw);
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-ecru);
+  box-shadow: -24px 0 70px rgba(20, 26, 23, .14);
+  display: flex; flex-direction: column;
+  transform: translateX(102%);
+  transition: transform .38s cubic-bezier(.3,.9,.3,1);
+}
+.drawer-wrap.open { pointer-events: auto; }
+.drawer-wrap.open .dw-backdrop { opacity: 1; }
+.drawer-wrap.open .drawer { transform: none; }
+
+.dw-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border-ecru); flex-shrink: 0;
+}
+.dw-cat { display: flex; align-items: center; gap: 7px; color: var(--accent-deep); min-width: 0; }
+.dw-cat b { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; }
+.dw-close {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--text-muted);
+  transition: background .15s, color .15s, transform .12s;
+}
+.dw-close:hover { background: rgba(0,0,0,.05); color: var(--text-main); transform: rotate(90deg); }
+
+.dw-scroll { flex: 1; overflow-y: auto; padding: 26px 30px 30px; }
+.dw-title {
+  font-family: var(--serif); font-size: 24px; font-weight: 600;
+  line-height: 1.45; letter-spacing: -.01em; color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+.dw-meta { margin-top: 10px; font-size: 12.5px; color: var(--text-muted); }
+
+/* 三段式階段標識與內容（物理級滅框 + 換行精準還原） */
+.dw-sec { margin-top: 16px; }
+.dw-lab {
+  font-size: 11px !important; font-weight: 600 !important;
+  color: #20808D !important; letter-spacing: .05em !important;
+  margin: 16px 0 0 0 !important;
+}
+.dw-d1 {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  font-family: Georgia, Charter, "Noto Serif SC", serif !important;
+  font-size: 14px !important;
+  line-height: 1.8 !important;
+  color: #242B28 !important;
+  margin: 6px 0 0 0 !important;
+  overflow-wrap: anywhere;
+}
+.dw-editarea {
+  width: 100%; min-height: 220px;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+  background: transparent !important;
+  font-family: Georgia, Charter, "Noto Serif SC", "Noto Serif TC", serif !important;
+  font-size: 15px !important;
+  line-height: 1.8 !important;
+  color: #242B28 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  caret-color: var(--accent);
+  margin: 6px 0 0 0 !important;
+  display: block; overflow-y: auto;
+}
+.dw-editarea::placeholder { color: #ADB6B1; }
+.dw-editarea::selection { background: var(--accent-soft); }
+.dw-locked { font-size: 12.5px; color: #ADB6B1; padding: 6px 0 2px; letter-spacing: .02em; }
+.dw-none { color: #ADB6B1; }
+
+.dw-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 13px 20px; border-top: 1px solid var(--border-ecru); flex-shrink: 0;
+  background: var(--bg-card);
+}
+.dw-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 500;
+  padding: 8px 14px; border-radius: 9px;
+  transition: background .15s, color .15s, transform .1s, filter .15s;
+}
+.dw-btn:active { transform: scale(.97); }
+.dw-btn.ghost { color: var(--text-body); border: 1px solid var(--border-ecru); }
+.dw-btn.ghost:hover { background: var(--sage); color: var(--text-main); }
+.dw-btn.teal { color: var(--accent); border: 1px solid var(--accent); }
+.dw-btn.teal:hover { background: var(--accent); color: #fff; }
+.dw-btn.solid { background: var(--accent-deep); color: #fff; margin-left: auto; }
+.dw-btn.solid:hover { filter: brightness(1.12); }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); } 40%, 60% { transform: translateX(3px); }
+}
+.dw-editarea.shake, .f-input.shake { animation: shake .4s; }
+
+/* ================= 晚思 ================= */
+.breathe {
+  display: flex; align-items: center; gap: 9px;
+  border: 1px solid var(--border-ecru); border-radius: 999px;
+  padding: 7px 14px; background: var(--bg-card);
+  transition: border-color .25s;
+}
+.breathe:hover { border-color: var(--accent); }
+.b-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); opacity: .85;
+  transition: transform .3s;
+}
+.breathe.on .b-dot { animation: breathe 19s ease-in-out infinite; }
+/* 4-7-8 呼吸節律：吸 4s ・ 屏 7s ・ 呼 8s */
+@keyframes breathe {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(32,128,141,.22); }
+  21% { transform: scale(1.7); box-shadow: 0 0 0 10px rgba(32,128,141,0); }
+  58% { transform: scale(1.7); box-shadow: 0 0 0 10px rgba(32,128,141,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(32,128,141,.22); }
+}
+.breathe span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+.journal { padding: 20px 22px; }
+.j-label { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--text-muted); margin-bottom: 8px; }
+
+/* 今日思考留痕：輕量摺疊 */
+.replay-bar {
+  display: flex; align-items: center; gap: 9px;
+  min-height: 38px; padding: 0 12px;
+  background: #FAF9F3; border: 1px solid var(--border-ecru); border-radius: 10px;
+  cursor: pointer; width: 100%; text-align: left;
+  transition: background .18s;
+}
+.replay-bar:hover { background: #F5F4EC; }
+.replay-bar svg { flex-shrink: 0; color: var(--text-muted); }
+.replay-bar b { font-size: 12.5px; font-weight: 600; color: var(--text-main); white-space: nowrap; }
+.rb-sum {
+  flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rb-toggle { font-size: 12px; font-weight: 500; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+.replay-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .3s ease;
+}
+.replay-body.open { grid-template-rows: 1fr; }
+.replay-inner { overflow: hidden; min-height: 0; }
+.replay-inner > div { padding-top: 10px; opacity: 0; transition: opacity .25s ease .08s; }
+.replay-body.open .replay-inner > div { opacity: 1; }
+.rp-card { background: var(--bg-card); border: 1px solid var(--border-ecru); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.rp-card:last-child { margin-bottom: 0; }
+.rp-title { font-size: 13px; font-weight: 600; color: var(--text-main); }
+.rp-sec { margin-top: 10px; }
+.rp-lab { font-size: 10.5px; font-weight: 600; color: #20808D; letter-spacing: .05em; }
+.rp-text {
+  margin-top: 3px;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  font-family: Georgia, Charter, "Noto Serif SC", serif !important;
+  font-size: 14.5px !important;
+  line-height: 1.75 !important;
+  color: #242B28 !important;
+}
+.rp-empty { padding: 8px 0 2px; font-size: 12.5px; color: #A4B2AF; }
+
+.reflect { border-top: 1px solid rgba(230,226,212,.7); padding-top: 16px; margin-top: 16px; }
+.r-row { display: flex; align-items: baseline; gap: 9px; padding: 9px 0; }
+.r-row svg { flex-shrink: 0; color: var(--text-muted); transform: translateY(1px); }
+.r-row label { flex-shrink: 0; font-size: 13.5px; color: var(--text-body); }
+.r-input {
+  flex: 1; min-width: 0;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid #E6E2D4 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-size: 13.5px; padding: 3px 2px;
+  transition: border-bottom-color .25s;
+}
+.r-input:focus, .r-input:focus-visible {
+  outline: none !important; box-shadow: none !important;
+  border-bottom-color: #20808D !important;
+}
+.r-input::placeholder { color: #ADB6B1; }
+#note-saved { font-size: 11px; color: var(--text-muted); opacity: 0; transition: opacity .4s; }
+#note-saved.show { opacity: 1; }
+
+.btn-sleep {
+  width: 100%; margin-top: 18px;
+  background: var(--text-main); color: #FBFAF4;
+  font-size: 13px; font-weight: 500; letter-spacing: .08em;
+  padding: 12px; border-radius: 11px;
+  transition: background .25s, transform .1s;
+}
+.btn-sleep:hover { background: #141A17; }
+.btn-sleep:active { transform: scale(.985); }
+
+#sleep-veil {
+  position: fixed; inset: 0; z-index: 90;
+  background: radial-gradient(120% 100% at 50% 30%, #1B211F 0%, #0E1211 70%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 2.6s ease;
+  display: grid; place-items: center;
+}
+#sleep-veil.on { opacity: .97; pointer-events: auto; }
+.veil-inner { text-align: center; opacity: 0; transform: translateY(6px); transition: opacity 1.6s ease .9s, transform 1.6s ease .9s; }
+#sleep-veil.on .veil-inner { opacity: 1; transform: none; }
+.veil-inner .moon { color: #8FB6AE; margin: 0 auto 18px; width: 34px; }
+.veil-inner h3 { font-family: var(--serif); font-size: 22px; font-weight: 400; letter-spacing: .2em; color: #D8DEDA; }
+.veil-inner p { margin-top: 10px; font-size: 13px; color: #798784; letter-spacing: .04em; }
+.veil-inner .wake { margin-top: 34px; font-size: 11px; color: #5A6560; }
+
+/* ================= 新增/編輯彈窗 ================= */
+.overlay {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(36, 43, 40, .3);
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  display: grid; place-items: start center; padding: 14vh 20px 20px;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .22s, visibility .22s;
+}
+.overlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+#modal-new { place-items: center; }
+.modal-card {
+  width: min(92vw, 430px);
+  background: var(--bg-card); border: 1px solid var(--border-ecru);
+  border-radius: 16px; padding: 24px;
+  box-shadow: 0 30px 90px rgba(20,26,23,.22);
+  transform: translateY(12px) scale(.98); transition: transform .28s cubic-bezier(.2,.9,.3,1.12);
+  place-self: center;
+}
+#modal-new.open .modal-card { transform: none; }
+.modal-card h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.modal-card .sub { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.f-label { display: block; margin-top: 16px; font-size: 12px; font-weight: 500; color: var(--text-main); }
+.cat-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cat-chip {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text-body);
+  border: 1px solid var(--border-ecru); border-radius: 9px;
+  padding: 6px 11px;
+  transition: all .18s;
+}
+.cat-chip:hover { border-color: var(--accent); color: var(--accent); }
+.cat-chip.active { background: var(--text-main); border-color: var(--text-main); color: #fff; }
+.f-input {
+  width: 100%; margin-top: 7px;
+  border: 1px solid var(--border-ecru); border-radius: 9px;
+  background: var(--bg-paper); outline: none;
+  font-size: 14px; padding: 9px 12px; resize: none;
+  transition: border-color .2s;
+}
+.f-input:focus { border-color: var(--accent); outline: none !important; box-shadow: none !important; }
+.f-input::placeholder { color: #ADB6B1; }
+.f-input.shake { animation: shake .4s; }
+.modal-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.btn-plain { font-size: 12.5px; font-weight: 500; color: var(--text-muted); padding: 8px 12px; border-radius: 8px; transition: background .18s, color .18s; }
+.btn-plain:hover { background: rgba(0,0,0,.04); color: var(--text-main); }
+.btn-solid { font-size: 12.5px; font-weight: 500; color: #fff; background: var(--accent); padding: 8px 16px; border-radius: 8px; transition: filter .18s, transform .1s; }
+.btn-solid:hover { filter: brightness(1.08); }
+.btn-solid:active { transform: scale(.97); }
+
+/* ================= 導出預覽 ================= */
+.exp-card { width: min(92vw, 400px); }
+.exp-head { display: flex; align-items: center; justify-content: space-between; }
+.exp-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.exp-themes { display: flex; gap: 4px; }
+.exp-theme {
+  font-size: 11.5px; color: var(--text-muted);
+  padding: 5px 11px; border-radius: 999px;
+  transition: all .18s;
+}
+.exp-theme:hover { color: var(--text-main); }
+.exp-theme.active { background: var(--text-main); color: #fff; }
+.exp-stage {
+  margin-top: 14px; max-height: 54vh; overflow: auto;
+  border: 1px solid var(--border-ecru); border-radius: 12px;
+  padding: 12px; background: var(--bg-paper);
+  display: grid; place-items: center;
+}
+#exp-canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: 6px; box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+}
+.exp-acts { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+
+/* ================= Spotlight ================= */
+#spotlight { place-items: start center; }
+.spot-card {
+  width: min(92vw, 560px);
+  background: var(--bg-card); border: 1px solid var(--border-ecru);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 30px 90px rgba(20, 26, 23, .25);
+  transform: translateY(10px) scale(.985); transition: transform .25s cubic-bezier(.2,.9,.3,1.1);
+}
+#spotlight.open .spot-card { transform: none; }
+.spot-box { display: flex; align-items: center; gap: 11px; padding: 15px 18px; border-bottom: 1px solid var(--border-ecru); color: var(--text-muted); }
+.spot-box input { flex: 1; border: 0; outline: none; font-size: 15px; background: transparent; }
+.spot-box input::placeholder { color: #ADB6B1; }
+.spot-kbd { font-size: 10px; color: var(--text-muted); border: 1px solid var(--border-ecru); border-radius: 5px; padding: 2px 6px; letter-spacing: .05em; }
+.spot-results { max-height: 400px; overflow-y: auto; padding: 6px; }
+.sp-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 9px; cursor: pointer;
+  transition: background .15s;
+}
+.sp-row:hover { background: #F5F4EC; }
+.sp-chip {
+  flex-shrink: 0; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+  color: var(--text-muted); background: rgba(0,0,0,.05); border-radius: 5px; padding: 2.5px 7px;
+}
+.sp-chip.arch { color: var(--accent-deep); background: var(--sage); }
+.sp-text { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-text input { width: 100%; border: 0; outline: none; border-bottom: 1px solid var(--accent); background: transparent; font-size: 13.5px; padding: 1px 0; }
+.sp-date { flex-shrink: 0; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.sp-more {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 6px;
+  display: grid; place-items: center; color: var(--text-muted);
+  opacity: 0; transition: opacity .15s, background .15s;
+}
+.sp-row:hover .sp-more { opacity: 1; }
+.sp-more:hover { background: rgba(0,0,0,.07); color: var(--text-main); }
+.sp-quiet { padding: 38px 0 32px; text-align: center; font-size: 12px; color: #A4B2AF; letter-spacing: .05em; }
+
+/* ================= 操作選單 ================= */
+.ctx {
+  position: fixed; z-index: 80; min-width: 158px;
+  background: var(--bg-card); border: 1px solid var(--border-ecru); border-radius: 11px;
+  box-shadow: 0 14px 44px rgba(20,26,23,.16);
+  padding: 5px;
+  display: none;
+}
+.ctx.show { display: block; animation: ctxIn .16s cubic-bezier(.2,.9,.3,1.15) both; }
+@keyframes ctxIn { from { opacity: 0; transform: translateY(-5px) scale(.97); } to { opacity: 1; transform: none; } }
+.ctx-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 8px 10px; border-radius: 7px;
+  font-size: 13px; color: var(--text-body); text-align: left;
+  transition: background .14s;
+}
+.ctx-item:hover { background: #F5F4EC; color: var(--text-main); }
+.ctx-item.danger, .ctx-item.danger:hover { color: var(--stamp-red); }
+.ctx-item.armed { background: rgba(210,71,56,.08); color: var(--stamp-red); font-weight: 600; }
+
+/* ================= 熄燈 ================= */
+#sleep-veil {
+  position: fixed; inset: 0; z-index: 90;
+  background: radial-gradient(120% 100% at 50% 30%, #1B211F 0%, #0E1211 70%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 2.6s ease;
+  display: grid; place-items: center;
+}
+#sleep-veil.on { opacity: .97; pointer-events: auto; }
+.veil-inner { text-align: center; opacity: 0; transform: translateY(6px); transition: opacity 1.6s ease .9s, transform 1.6s ease .9s; }
+#sleep-veil.on .veil-inner { opacity: 1; transform: none; }
+.veil-inner .moon { color: #8FB6AE; margin: 0 auto 18px; width: 34px; }
+.veil-inner h3 { font-family: var(--serif); font-size: 22px; font-weight: 400; letter-spacing: .2em; color: #D8DEDA; }
+.veil-inner p { margin-top: 10px; font-size: 13px; color: #798784; letter-spacing: .04em; }
+.veil-inner .wake { margin-top: 34px; font-size: 11px; color: #5A6560; }
+
+/* ================= Toast ================= */
+#toast {
+  position: fixed; left: 50%; bottom: 30px; z-index: 95;
+  transform: translate(-50%, 12px);
+  background: rgba(36, 43, 40, .94); color: #FBFAF4;
+  padding: 9px 18px; border-radius: 10px;
+  font-size: 13px; max-width: 90vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s cubic-bezier(.2,.9,.3,1.2);
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ================= 側欄收合 ================= */
+.store-badge { display: block; margin: 0 0 10px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.store-badge.bad { color: var(--stamp-red); }
+.hist-card { max-width: 620px; }
+.hist-list { padding: 4px 22px 22px; overflow-y: auto; max-height: 62vh; }
+.hist-row { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--border-ecru); border-radius: 10px; margin-bottom: 8px; background: #fff; }
+.hist-row .h-when { flex: 1; min-width: 0; }
+.hist-row .h-time { font-size: 12.5px; font-weight: 600; color: var(--text-main); font-variant-numeric: tabular-nums; }
+.hist-row .h-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.hist-row .h-cur { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: #fff; background: var(--accent); border-radius: 5px; padding: 2px 6px; }
+.hist-empty { padding: 26px 8px; text-align: center; font-size: 12.5px; color: var(--text-muted); line-height: 1.7; }
+body.sb-min .brand span,
+body.sb-min .rt-num,
+body.sb-min .rt-label,
+body.sb-min .foot-link span { display: none; }
+body.sb-min .sb-head { flex-direction: column; gap: 10px; }
+body.sb-min .rt-item { justify-content: center; padding: 8px 0; }
+body.sb-min .foot-link { justify-content: center; padding: 8px 0; }
+body.sb-min .stage { padding-left: 40px; padding-right: 40px; }
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(90, 101, 96, .25); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 物理級滅框：輸入框絕不出現封閉外框 */
+input:focus, textarea:focus, input:focus-visible, textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 860px) {
+  .app { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; padding: 10px 14px; gap: 12px; border-right: 0; border-bottom: 1px solid var(--border-ecru); }
+  .sb-head { flex-shrink: 0; }
+  .brand span { display: block; }
+  .routine { flex-direction: row; flex: 1; gap: 4px; overflow-x: auto; }
+  .routine::before { display: none; }
+  .rt-item { padding: 7px 10px; }
+  .rt-ico, .rt-num { display: none; }
+  .rt-label { display: block; }
+  .sb-foot { margin: 0; flex-direction: row; }
+  .stage { padding: 22px 16px 60px; }
+  body.sb-min .stage { padding-left: 16px; padding-right: 16px; }
+  .drawer { width: 100vw; }
+  .dw-scroll { padding: 20px 18px 24px; }
+  .dw-title { font-size: 21px; }
+}
+/* ================= 月度雙手帳 ================= */
+#nb-overlay { place-items: center; }
+.nb-card {
+  width: min(94vw, 780px); height: min(88vh, 900px);
+  background: var(--bg-card); border: 1px solid var(--border-ecru); border-radius: 16px;
+  box-shadow: 0 30px 90px rgba(20, 26, 23, .22);
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(12px) scale(.98); transition: transform .28s cubic-bezier(.2, .9, .3, 1.12);
+}
+.nb-overlay.open .nb-card { transform: none; }
+.nb-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border-ecru); flex-shrink: 0; }
+.nb-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.nb-tabs { display: flex; gap: 4px; margin-left: 6px; }
+.nb-tab {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 500; color: var(--text-muted);
+  padding: 7px 12px; border-radius: 9px; transition: all .18s;
+}
+.nb-tab:hover { color: var(--text-main); background: rgba(0, 0, 0, .04); }
+.nb-tab.active { background: #EBEBE6; color: var(--text-main); font-weight: 600; }
+.nb-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.nb-sheet { flex: 1; overflow-y: auto; padding: 26px 34px 34px; }
+.nb-kicker { font-size: 11px; font-weight: 600; letter-spacing: .12em; color: var(--text-muted); text-align: center; }
+.nb-grid-title { font-family: var(--serif); font-size: 21px; font-weight: 600; text-align: center; margin-top: 6px; }
+.lg-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px 8px; max-width: 430px; margin: 22px auto 10px; }
+.lg-cell { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.lg-dot { width: 11px; height: 11px; border-radius: 50%; }
+.lg-dot.full { background: var(--accent); }
+.lg-dot.part { background: #9DB4A6; }
+.lg-dot.empty { background: transparent; border: 1.5px dashed var(--text-muted); }
+.lg-dot.future { background: #ECEAE0; }
+.lg-n { font-size: 9px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lg-rate { text-align: center; font-size: 12.5px; font-weight: 600; color: var(--accent-deep); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.lg-extra { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.lg-legend { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 12px; font-size: 10.5px; color: var(--text-muted); }
+.lg-legend .lg-dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; }
+.nb-day { padding: 16px 2px 14px; border-top: 1px solid var(--border-ecru); margin-top: 14px; break-inside: avoid !important; page-break-inside: avoid !important; }
+.nb-day h4 { font-family: var(--serif); font-size: 14.5px; font-weight: 600; color: var(--text-main); }
+.nb-day ul { margin-top: 8px; }
+.nb-day li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-body); padding: 4px 0; }
+.nb-day li.done { color: var(--text-muted); text-decoration: line-through; text-decoration-color: rgba(121, 135, 132, .5); }
+.nb-day li svg { flex-shrink: 0; }
+.nb-ref { font-family: var(--serif); font-size: 14px; line-height: 1.8; color: var(--text-body); margin-top: 10px; }
+.nb-ref-l { display: block; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; color: var(--accent); margin-bottom: 2px; }
+.nb-empty { padding: 44px 0; text-align: center; font-size: 12.5px; color: var(--text-muted); }
+.nb-runhead { display: none; }
+#nb-nudge {
+  position: fixed; left: 50%; bottom: 34px; transform: translate(-50%, 16px); z-index: 96;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-card); border: 1px solid var(--border-ecru); border-radius: 13px;
+  padding: 12px 14px 12px 20px; font-size: 13px; color: var(--text-main);
+  box-shadow: 0 18px 60px rgba(20, 26, 23, .2);
+  opacity: 0; pointer-events: none;
+  transition: opacity .35s, transform .35s cubic-bezier(.2, .9, .3, 1.2);
+}
+#nb-nudge.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#nb-nudge .nn-acts { display: flex; gap: 6px; }
+
+/* ================= 出版級 PDF（@media print） ================= */
+@media print {
+  @page { size: A4 portrait; margin: 22mm 20mm 22mm 26mm; }
+  body.nb-print .app, body.nb-print #drawer-wrap, body.nb-print #modal-new, body.nb-print #export-modal,
+  body.nb-print #spotlight, body.nb-print #sleep-veil, body.nb-print #toast, body.nb-print #ctx-menu,
+  body.nb-print #nb-nudge { display: none !important; }
+  body.nb-print #nb-overlay {
+    display: block !important; position: static !important; inset: auto !important;
+    padding: 0 !important; background: none !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
+  }
+  body.nb-print .nb-card {
+    width: 100% !important; height: auto !important; max-height: none !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+    transform: none !important; background: #fff !important; display: block !important;
+  }
+  body.nb-print .nb-head { display: none !important; }
+  body.nb-print .nb-sheet { overflow: visible !important; max-height: none !important; padding: 0 !important; }
+  body.nb-print .nb-runhead {
+    display: block !important; position: fixed; top: -14mm; left: 0; right: 0;
+    text-align: center; font: 600 9px -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: .18em; color: #A4B2AF;
+  }
+  .nb-day { break-inside: avoid !important; page-break-inside: avoid !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ 側欄 ============ -->
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.2" y="2.2" width="19.6" height="19.6" rx="6" stroke="#242B28" stroke-width="2.2"/>
+          <circle cx="12" cy="12" r="4.6" stroke="#242B28" stroke-width="2.2"/>
+        </svg>
+        <span>Klingon <i class="ver" title="版本">18</i></span>
+      </div>
+      <div class="sb-actions">
+        <button class="icon-btn" id="btn-search" title="全域檢索（Cmd+K）" aria-label="全域檢索">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-collapse" title="收合側欄" aria-label="收合側欄">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <nav class="routine" aria-label="一日時序軌道">
+      <button class="rt-item active" data-view="morning">
+        <span class="rt-ico">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7.5 15.5a4.5 4.5 0 0 1 9 0"/><path d="M12 7.2V4.8"/><path d="M4 18.5h16"/></svg>
+        </span>
+        <span class="rt-num">01</span><span class="rt-label">晨間待辦</span>
+      </button>
+      <button class="rt-item" data-view="output">
+        <span class="rt-ico">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3.5v17"/><path d="M4.6 7.75l14.8 8.5"/><path d="M19.4 7.75l-14.8 8.5"/></svg>
+        </span>
+        <span class="rt-num">02</span><span class="rt-label">輸出追蹤</span>
+      </button>
+      <button class="rt-item" data-view="night">
+        <span class="rt-ico">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.8a8.6 8.6 0 1 0 5.9 12.7A9 9 0 0 1 14.5 3.8Z"/></svg>
+        </span>
+        <span class="rt-num">03</span><span class="rt-label">晚思覆盤</span>
+      </button>
+    </nav>
+
+    <div class="sb-foot">
+      <span class="store-badge" id="store-badge"></span>
+      <button class="foot-link" id="btn-nb">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5C10.5 4 8.5 3.5 5 3.5v14c3.5 0 5.5.5 7 2 1.5-1.5 3.5-2 7-2v-14c-3.5 0-5.5.5-7 2Z"/><path d="M12 5.5v14"/></svg>
+        <span>月度手帳</span>
+      </button>
+      <button class="foot-link" id="btn-export">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 19.5h15"/></svg>
+        <span>備份</span>
+      </button>
+      <button class="foot-link" id="btn-restore">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M7.5 8.5L12 4l4.5 4.5"/><path d="M4.5 19.5h15"/></svg>
+        <span>恢復</span>
+      </button>
+      <button class="foot-link" id="btn-disk">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="7" rx="2"/><path d="M5.5 11L8 4.5h8L18.5 11"/><path d="M7 14.5h.01M10.5 14.5h.01"/></svg>
+        <span id="btn-disk-label">啟用本地存檔</span>
+      </button>
+      <button class="foot-link" id="btn-history">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5V9h4.5"/></svg>
+        <span>歷史版本</span>
+      </button>
+      <input type="file" id="restore-file" accept=".json,application/json" hidden>
+    </div>
+  </aside>
+
+  <!-- ============ 主舞台 ============ -->
+  <main class="stage">
+
+    <!-- 01 晨間待辦 -->
+    <section class="view" id="view-morning">
+      <div class="view-top">
+        <h2 class="page-title">晨間待辦</h2>
+        <span class="clock-line tnum" id="morning-clock"></span>
+      </div>
+      <div class="card todo-card">
+        <div class="todo-head">
+          <div class="todo-head-left">
+            <span class="sun-badge" id="sun-badge"></span>
+          </div>
+          <div class="todo-head-right">
+            <span class="num tnum" id="todo-progress">0 / 3</span>
+            <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+              <circle cx="13" cy="13" r="10" fill="none" stroke="var(--border-ecru)" stroke-width="2"/>
+              <circle id="ring-fg" cx="13" cy="13" r="10" fill="none" stroke="var(--accent)" stroke-width="2"
+                      stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="62.83"
+                      transform="rotate(-90 13 13)" style="transition:stroke-dashoffset .5s cubic-bezier(.2,.7,.3,1)"/>
+            </svg>
+          </div>
+        </div>
+        <ul class="t-list" id="todo-list"></ul>
+        <div class="quick-add">
+          <input id="todo-input" maxlength="60" placeholder="寫下今日聚焦，按 Enter 落筆…" aria-label="新增晨間聚焦">
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 輸出追蹤 -->
+    <section class="view" id="view-output" hidden>
+      <div class="view-top">
+        <div class="head-left">
+          <span class="badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3.5v17"/><path d="M4.6 7.75l14.8 8.5"/><path d="M19.4 7.75l-14.8 8.5"/></svg>
+          </span>
+          <h2 class="page-title">輸出追蹤</h2>
+        </div>
+        <button class="btn-accent-o" id="btn-new">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          新增
+        </button>
+      </div>
+      <div class="cat-bar" id="cat-bar"></div>
+      <div class="out-stack" id="out-stack"></div>
+
+      <div class="card archive" id="archive">
+        <button class="archive-toggle" id="btn-archive">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5.5 8.5V18a1.5 1.5 0 0 0 1.5 1.5h10A1.5 1.5 0 0 0 18.5 18V8.5"/><path d="M10 12.5h4"/></svg>
+          歷史已固化記憶 <span class="cnt tnum" id="arch-count">(0 篇)</span>
+          <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="archive-list" id="archive-list" hidden></div>
+      </div>
+    </section>
+
+    <!-- 03 晚思覆盤 -->
+    <section class="view" id="view-night" hidden>
+      <div class="view-top">
+        <div class="head-left">
+          <span class="badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.8a8.6 8.6 0 1 0 5.9 12.7A9 9 0 0 1 14.5 3.8Z"/></svg>
+          </span>
+          <h2 class="page-title">晚思覆盤</h2>
+        </div>
+        <button class="breathe" id="btn-breathe" aria-pressed="false">
+          <span class="b-dot"></span>
+          <span id="breathe-label">15 分鐘呼吸沉澱</span>
+        </button>
+      </div>
+
+      <div class="card journal">
+        <div class="replay">
+          <div id="night-replay"></div>
+        </div>
+
+        <div class="reflect">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <p class="j-label" style="margin-bottom:0">三行微反思</p>
+            <span id="note-saved">已自動儲存</span>
+          </div>
+          <div class="r-row">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+            <label for="r-win">今天最值得肯定的一刻？</label>
+            <input class="r-input" id="r-win" maxlength="80">
+          </div>
+          <div class="r-row">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+            <label for="r-weak">覺察到的一個小弱點？</label>
+            <input class="r-input" id="r-weak" maxlength="80">
+          </div>
+          <div class="r-row">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+            <label for="r-step">明天最想邁出的一小步？</label>
+            <input class="r-input" id="r-step" maxlength="80">
+          </div>
+        </div>
+
+        <button class="btn-sleep" id="btn-sleep">熄燈</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 閱讀抽屜（三段式信箋） -->
+<div class="drawer-wrap" id="drawer-wrap" role="dialog" aria-modal="true" aria-label="閱讀全文">
+  <div class="dw-backdrop" id="dw-backdrop"></div>
+  <aside class="drawer">
+    <div class="dw-top">
+      <span class="dw-cat" id="dw-cat"></span>
+      <button class="dw-close" id="dw-close" aria-label="關閉">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+    </div>
+    <div class="dw-scroll">
+      <h2 class="dw-title" id="dw-title"></h2>
+      <p class="dw-meta tnum" id="dw-meta"></p>
+      <div id="dw-body"></div>
+    </div>
+    <div class="dw-bar" id="dw-bar"></div>
+  </aside>
+</div>
+
+<!-- 新增 / 編輯 -->
+<div class="overlay" id="modal-new" role="dialog" aria-modal="true" aria-labelledby="modal-new-title">
+  <div class="modal-card">
+    <h3 id="modal-new-title">新增</h3>
+    <p class="sub">7 日記憶迴路，慢慢寫、慢慢固化。</p>
+    <label class="f-label">分類</label>
+    <div class="cat-row" id="cat-row"></div>
+    <label class="f-label">主題
+      <input class="f-input" id="f-title" maxlength="90" placeholder="例如：How do I stay positive when I just keep getting ghosted?">
+    </label>
+    <label class="f-label">第一句靈感
+      <textarea class="f-input" id="f-insight" rows="2" placeholder="此刻最打動你的一句話…"></textarea>
+    </label>
+    <div class="modal-acts">
+      <button class="btn-plain" id="btn-new-cancel">取消</button>
+      <button class="btn-solid" id="btn-new-save">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- 導出預覽 -->
+<div class="overlay" id="export-modal" role="dialog" aria-modal="true" aria-label="導出圖片">
+  <div class="modal-card exp-card">
+    <div class="exp-head">
+      <span class="exp-title">導出</span>
+      <div class="exp-themes">
+        <button class="exp-theme active" data-theme="paper">紙白</button>
+        <button class="exp-theme" data-theme="dark">曜石</button>
+      </div>
+    </div>
+    <div class="exp-stage"><canvas id="exp-canvas"></canvas></div>
+    <div class="exp-acts">
+      <button class="dw-btn ghost" id="exp-copy">複製圖片</button>
+      <button class="dw-btn teal" id="exp-download">下載圖片</button>
+      <button class="btn-plain" id="exp-close" style="margin-left:auto">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 月度雙手帳 -->
+<div class="overlay nb-overlay" id="nb-overlay" role="dialog" aria-modal="true" aria-label="月度手帳">
+  <div class="nb-card">
+    <div class="nb-head">
+      <span class="nb-title">月度手帳</span>
+      <div class="nb-tabs">
+        <button class="nb-tab active" data-nbtab="morning">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3.5v2M20.5 12h-2M12 20.5v-2M3.5 12h2M17.8 6.2l-1.4 1.4M17.8 17.8l-1.4-1.4M6.2 17.8l1.4-1.4M6.2 6.2l1.4 1.4"/></svg>
+          晨間行動
+        </button>
+        <button class="nb-tab" data-nbtab="night">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.8a8.6 8.6 0 1 0 5.9 12.7A9 9 0 0 1 14.5 3.8Z"/></svg>
+          晚思心靈
+        </button>
+      </div>
+      <div class="nb-actions">
+        <button class="dw-btn teal" id="nb-pdf">導出 PDF</button>
+        <button class="dw-close" id="nb-close" aria-label="關閉">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="nb-runhead">KLINGON · MONTHLY CHRONICLE</div>
+    <div class="nb-sheet" id="nb-sheet"></div>
+  </div>
+</div>
+
+<!-- 歷史版本：找回被覆蓋的內容 -->
+<div class="overlay nb-overlay" id="hist-overlay" role="dialog" aria-modal="true" aria-label="歷史版本">
+  <div class="nb-card hist-card">
+    <div class="nb-head">
+      <span class="nb-title">歷史版本</span>
+      <div class="nb-actions">
+        <button class="dw-close" id="hist-close" aria-label="關閉">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="nb-runhead">KLINGON · RESTORE POINTS</div>
+    <div class="hist-list" id="hist-list"></div>
+  </div>
+</div>
+
+<!-- 月度時令提醒 -->
+<div id="nb-nudge" role="status">
+  <span id="nb-nudge-text"></span>
+  <span class="nn-acts">
+    <button class="btn-plain" id="nb-nudge-later">稍後</button>
+    <button class="btn-solid" id="nb-nudge-open">查看</button>
+  </span>
+</div>
+
+<!-- Spotlight -->
+<div class="overlay" id="spotlight" role="dialog" aria-modal="true">
+  <div class="spot-card">
+    <div class="spot-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+      <input id="spot-input" placeholder="檢索所有思考、待辦與反思…" autocomplete="off">
+      <span class="spot-kbd">ESC</span>
+    </div>
+    <div class="spot-results" id="spot-results"></div>
+  </div>
+</div>
+
+<div class="ctx" id="ctx-menu" role="menu"></div>
+
+<!-- 熄燈 -->
+<div id="sleep-veil">
+  <div class="veil-inner">
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.8a8.6 8.6 0 1 0 5.9 12.7A9 9 0 0 1 14.5 3.8Z"/></svg>
+    <h3>晚安。</h3>
+    <p>今天辛苦了，交給夢境繼續發酵。</p>
+    <p class="wake">點擊任意處醒來</p>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   Klingon ・ 認知與輸出系統（最終版）
+   localStorage 持久化 ＋ Web Audio 多感官反饋 ＋ 零依賴
+   ============================================================ */
+
+/* ---------- 工具 ---------- */
+const $  = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+const pad = n => String(n).padStart(2, '0');
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDate = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const daysBetween = (a, b) => Math.round((parseDate(b) - parseDate(a)) / 86400000);
+const fullDate = s => { const [y, m, d] = s.split('-'); return `${y}/${+m}/${+d}`; };
+const shortDate = s => { const p = String(s).split('-'); return `${+p[1]}/${+p[2]}`; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const summary = (t, n) => { const c = String(t || '').replace(/\s+/g, ' ').trim(); return c.length > n ? c.slice(0, n) + '…' : c; };
+const restoreParas = s => String(s || '').replace(/([。！？])\s+/g, '$1\n\n');   // 單行輸入吞掉的換行（句號後空格）還原為段落
+const words = t => {
+  const s = String(t || '');
+  const latin = (s.match(/[A-Za-z0-9'’\-]+/g) || []).length;
+  const cjk = (s.match(/[\u4e00-\u9fff]/g) || []).length;
+  return latin + cjk;
+};
+const shakeEl = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
+
+/* ---------- 分類（純英文） ---------- */
+const CATS = ['Book', 'Movie', 'Show', 'Podcast', 'Life'];
+const CAT_ICONS = {
+  Book: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.5 5 8.5 4.5 5 4.5v13c3.5 0 5.5.5 7 2 1.5-1.5 3.5-2 7-2v-13c-3.5 0-5.5.5-7 2Z"/><path d="M12 6.5v13"/></svg>',
+  Movie: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M8 5v14M16 5v14M3.5 9.5h4.5M3.5 14.5h4.5M16 9.5h4.5M16 14.5h4.5"/></svg>',
+  Show: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="12" rx="2"/><path d="M8.5 3.5L12 6.5l3.5-3"/></svg>',
+  Podcast: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>',
+  Life: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C7 17 4.5 13.5 4.5 9.5 4.5 6 7 4 9.5 4c1.2 0 2 .4 2.5 1C12.5 4.4 13.3 4 14.5 4 17 4 19.5 6 19.5 9.5c0 4-2.5 7.5-7.5 11.5Z"/></svg>',
+};
+const FILLED_CHK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle class="fill-c" cx="12" cy="12" r="10" fill="var(--accent)"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DASH_CIRCLE = c => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="${c}" stroke-width="1.5" stroke-dasharray="3.4 3.6" stroke-linecap="round"/></svg>`;
+const LOCK_SVG = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+const CHECK_SVG = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7.5" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const drafts = {};
+
+/* ---------- 狀態 ---------- */
+const KEY = 'klingon.v1';
+const SEED_FLAG = 'klingon.initialized';
+let state = load();
+
+/* 只在「從未初始化過」時才注入示例數據，且必須先取得使用者同意。
+   過去只要 localStorage 被清空（換瀏覽器、清快取、開到不同 origin）就會自動
+   塞入示例數據並覆蓋畫面，讓使用者誤以為自己寫的內容被改成別人的東西。
+   現在改為：需要主動確認，且一旦使用者選擇過就不再自動詢問。 */
+if (localStorage.getItem(KEY) === null) {
+  const asked = localStorage.getItem(SEED_FLAG);
+  if (!asked) {
+    localStorage.setItem(SEED_FLAG, '1');
+    if (confirm('偵測到這是全新的儲存空間（沒有任何既有內容）。\n\n要載入一組示例數據方便你先看看長什麼樣嗎？\n\n選「取消」= 保持空白，從頭開始。')) {
+      seedState();
+    }
+  }
+}
+
+function normalizeOutput(o) {
+  let content = String(o.content || '');
+  if (!content && Array.isArray(o.contents)) {
+    content = o.contents.slice().sort((a, b) => b.length - a.length)[0] || '';
+  }
+  let insight0 = String(o.insight || '');
+  // 長文搶救：一句話欄位誤存長文且正文為空 → 移回 D3 並還原段落
+  if (!content.trim() && insight0.trim().length > 100) {
+    content = restoreParas(insight0);
+    insight0 = '';
+  }
+  const insight = insight0;
+  return {
+    id: o.id || uid(),
+    title: o.title || '未命名思考',
+    category: CATS.includes(o.category) ? o.category : 'Life',
+    insight,
+    content,
+    content7: String(o.content7 || ''),
+    stamps: (() => {
+      const st = Array.isArray(o.stamps) ? o.stamps.map(Number) : [0, 0, 0];
+      const base = Number(o.createdAt || Date.now());
+      const upd = Number(o.updatedAt || base);
+      return [
+        st[0] || (insight.trim() ? base : 0),
+        st[1] || (content.trim() ? upd : 0),
+        st[2] || (String(o.content7 || '').trim() ? upd : 0),
+      ];
+    })(),
+    date: o.date || todayStr(),
+    pinned: !!o.pinned,
+    archived: !!o.archived,
+    createdAt: o.createdAt || Date.now(),
+    updatedAt: Number(o.updatedAt) || o.createdAt || Date.now(),
+  };
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      return {
+        todos: (o.todos && typeof o.todos === 'object') ? o.todos : {},
+        outputs: Array.isArray(o.outputs) ? o.outputs.map(normalizeOutput) : [],
+        reflect: (o.reflect && typeof o.reflect === 'object') ? o.reflect : {},
+        tombstones: Array.isArray(o.tombstones) ? o.tombstones : [],
+        ui: Object.assign({ collapsed: false, filter: 'All' }, o.ui && typeof o.ui === 'object' ? o.ui : {}),
+      };
+    }
+  } catch (e) {}
+  return { todos: {}, outputs: [], reflect: {}, tombstones: [], ui: { collapsed: false, filter: 'All' } };
+}
+/* ============================================================
+   自動輪替備份：每次儲存都留一份帶時間戳的副本，最多保留 20 份。
+   這是防止「內容莫名消失」的最後一道防線——即使主資料被覆蓋，
+   也能從歷史備份中找回。
+   ============================================================ */
+const BACKUP_KEY = 'klingon.v1.backups';
+function writeRotatingBackup(serialized) {
+  try {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    const last = list[list.length - 1];
+    // 內容沒變就不重複存
+    if (last && last.data === serialized) return;
+    // 太貧乏的版本不佔位
+    if (isTrivial(serialized)) return;
+    list.push({ ts: Date.now(), data: serialized });
+    // 逐出最舊的，同時管制總量（localStorage 通常只有 5MB）
+    while (list.length > 20) list.shift();
+    let total = list.reduce((a, b) => a + b.data.length, 0);
+    while (list.length > 1 && total > 3000000) {
+      total -= list[0].data.length;
+      list.shift();
+    }
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+
+function save() {
+  try {
+    syncFromStorage(true);
+    const prev = localStorage.getItem(KEY);
+    // 只有「真正有內容」的舊資料才值得存成快照。
+    // 空物件／只有種子數據的版本不該佔用快照位，否則救援功能會拿示例數據去覆蓋真實資料。
+    if (prev && !isTrivial(prev)) localStorage.setItem(KEY + '.snapshot', prev);
+    const serialized = JSON.stringify(state);
+    localStorage.setItem(KEY, serialized);
+    localStorage.setItem('klingon.savedAt', String(Date.now()));
+    localStorage.setItem(SEED_FLAG, '1');
+    writeRotatingBackup(serialized);
+    diskWrite();
+    storageBadge('ok');
+  }
+  catch (e) { toast('儲存失敗：瀏覽器空間不足'); storageBadge('fail'); }
+}
+/* 判斷一份存檔是否「幾乎沒內容」：示例數據或空殼都算，不值得當救援快照 */
+function isTrivial(raw) {
+  try {
+    const o = JSON.parse(raw);
+    const outs = (o.outputs || []).filter(x => !x.archived);
+    const todoDays = Object.keys(o.todos || {}).length;
+    const reflDays = Object.keys(o.reflect || {}).length;
+    if (outs.length === 0 && todoDays === 0 && reflDays === 0) return true;
+    const SEED_TITLES = ['《十一種孤獨》', '《花樣年華》重看'];
+    if (outs.length === 2 && outs.every(x => SEED_TITLES.includes(x.title))) return true;
+    return false;
+  } catch (e) { return false; }
+}
+function storageBadge(st) {
+  const el = $('#store-badge'); if (!el) return;
+  el.classList.toggle('bad', st === 'fail');
+  const n = state.outputs.filter(o => !o.archived).length;
+  el.textContent = st === 'fail' ? '儲存失敗' : `${n} 篇在庫`;
+}
+storageBadge();
+
+/* ---------- 多窗口數據合流：寫入前先合併他窗改動，杜絕互相覆蓋 ---------- */
+function tombstone(id) {
+  state.tombstones = state.tombstones || [];
+  state.tombstones = state.tombstones.filter(t => t.id !== id);
+  state.tombstones.push({ id, ts: Date.now() });
+}
+function mergeOutputs(fresh, ours, oursWins) {
+  const map = new Map(fresh.map(o => [o.id, o]));
+  ours.forEach(o => {
+    const ex = map.get(o.id);
+    if (!ex || (Number(o.updatedAt) || 0) >= (Number(ex.updatedAt) || 0)) map.set(o.id, o);
+  });
+  // 順序即數據：同一組輸出（無增刪）時，以最後寫入一方的排布為準
+  const sameSet = fresh.length === ours.length && ours.every(o => map.has(o.id));
+  if (sameSet) return (oursWins ? ours : fresh).map(o => map.get(o.id));
+  const extra = ours.filter(o => !fresh.some(x => x.id === o.id));
+  return [...extra, ...fresh.map(o => map.get(o.id))];
+}
+function mergeTodoDay(fresh, ours, oursWins) {
+  const map = new Map(fresh.map(t => [t.id, t]));
+  ours.forEach(t => {
+    const ex = map.get(t.id);
+    if (!ex || oursWins) map.set(t.id, t);
+  });
+  // 順序即數據：同一組待辦（無增刪）時，以最後寫入一方的手動排序為準
+  const sameSet = fresh.length === ours.length && ours.every(t => map.has(t.id));
+  if (sameSet) return (oursWins ? ours : fresh).map(t => map.get(t.id));
+  const extra = ours.filter(t => !fresh.some(x => x.id === t.id));
+  return [...extra, ...fresh.map(t => map.get(t.id))];
+}
+function mergeState(fresh, ours, oursWins) {
+  const tombs = {};
+  (ours.tombstones || []).concat(fresh.tombstones || []).forEach(t => { tombs[t.id] = Math.max(tombs[t.id] || 0, Number(t.ts) || 0); });
+  const aliveO = list => list.filter(o => !(tombs[o.id] >= (Number(o.updatedAt) || 0)));
+  const aliveT = list => list.filter(t => !tombs[t.id]);
+  const fo = aliveO(fresh.outputs || []), oo = aliveO(ours.outputs || []);
+  const out = {
+    todos: {},
+    outputs: mergeOutputs(fo, oo, oursWins),
+    reflect: {},
+    tombstones: Object.keys(tombs).map(id => ({ id, ts: tombs[id] })).sort((a, b) => b.ts - a.ts).slice(0, 200),
+    ui: Object.assign({}, fresh.ui, ours.ui),
+  };
+  const tDates = new Set([...Object.keys(fresh.todos || {}), ...Object.keys(ours.todos || {})]);
+  tDates.forEach(d => {
+    out.todos[d] = mergeTodoDay(aliveT(fresh.todos[d] || []), aliveT(ours.todos[d] || []), oursWins);
+  });
+  const rDates = new Set([...Object.keys(fresh.reflect || {}), ...Object.keys(ours.reflect || {})]);
+  rDates.forEach(d => {
+    const a = fresh.reflect[d] || {}, b = ours.reflect[d] || {};
+    const pick = k => String((oursWins ? (b[k] || a[k]) : (a[k] || b[k])) || '');
+    out.reflect[d] = { win: pick('win'), weak: pick('weak'), step: pick('step') };
+  });
+  return out;
+}
+function rerenderAll() {
+  const ae = document.activeElement;
+  const typing = !!(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA'));
+  renderCatBar();
+  if (!typing) renderMorning();
+  renderOutputs();
+  if (!typing) renderNight();
+  storageBadge();
+}
+function syncFromStorage(preferOurs) {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const fresh = JSON.parse(raw);
+    if (!fresh || typeof fresh !== 'object') return;
+    const merged = mergeState(fresh, state, preferOurs);
+    const changed = JSON.stringify(merged) !== JSON.stringify(state);
+    state = merged;
+    if (changed) rerenderAll();
+  } catch (e) {}
+}
+window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) syncFromStorage(false); });
+const byId = id => state.outputs.find(x => x.id === id);
+const todosToday = () => (state.todos[todayStr()] ||= []);
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------- Web Audio（首次點擊自動解鎖） ---------- */
+let actx = null;
+function ac() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  } catch (e) { return null; }
+}
+document.addEventListener('pointerdown', () => { try { ac(); } catch (e) {} }, { once: true, capture: true });
+function playClick() {
+  const a = ac(); if (!a) return;
+  const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(1900, t);
+  o.frequency.exponentialRampToValueAtTime(1350, t + .05);
+  g.gain.setValueAtTime(.001, t);
+  g.gain.exponentialRampToValueAtTime(.11, t + .008);
+  g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+  o.connect(g).connect(a.destination);
+  o.start(t); o.stop(t + .09);
+}
+function playPunch() {
+  const a = ac(); if (!a) return;
+  const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(55, t + .12);
+  g.gain.setValueAtTime(.5, t);
+  g.gain.exponentialRampToValueAtTime(.001, t + .17);
+  o.connect(g).connect(a.destination);
+  o.start(t); o.stop(t + .19);
+  const len = Math.floor(a.sampleRate * .09);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 950;
+  const ng = a.createGain(); ng.gain.value = .22;
+  src.connect(f); f.connect(ng); ng.connect(a.destination);
+  src.start(t);
+}
+function playSingingBowl() {
+  const a = ac(); if (!a) return;
+  const t = a.currentTime, D = 2.4;
+  const master = a.createGain();
+  master.gain.setValueAtTime(0, t);
+  master.gain.linearRampToValueAtTime(.17, t + .45);
+  master.gain.exponentialRampToValueAtTime(.0001, t + D);
+  master.connect(a.destination);
+  [[174, .9], [349, .42], [521.5, .13]].forEach(([f, v]) => {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine';
+    o.frequency.value = f;
+    o.detune.value = Math.random() * 6 - 3;
+    g.gain.value = v;
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + D + .1);
+  });
+}
+
+/* ---------- 精密時鐘 ---------- */
+function dayWord(h) {
+  if (h >= 5 && h < 9) return '清晨';
+  if (h >= 9 && h < 12) return '上午';
+  if (h >= 12 && h < 14) return '午後';
+  if (h >= 14 && h < 18) return '下午';
+  if (h >= 18 && h < 20) return '傍晚';
+  if (h >= 20 && h < 23) return '晚間';
+  return '深夜';
+}
+function tickClock() {
+  const n = new Date();
+  const el = $('#morning-clock');
+  if (!el) return;
+  el.textContent = `${n.getFullYear()}年${n.getMonth() + 1}月${n.getDate()}日 · ${dayWord(n.getHours())} ${pad(n.getHours())}:${pad(n.getMinutes())}`;
+}
+
+/* ---------- 視圖切換 ---------- */
+const VIEWS = ['morning', 'output', 'night'];
+function setView(name) {
+  $$('.rt-item').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  VIEWS.forEach(v => { $('#view-' + v).hidden = v !== name; });
+  if (name === 'morning') renderMorning();
+  if (name === 'output') renderOutputs();
+  if (name === 'night') renderNight();
+}
+$$('.rt-item').forEach(b => b.addEventListener('click', () => { playClick(); setView(b.dataset.view); }));
+
+function applyCollapsed() { document.body.classList.toggle('sb-min', !!state.ui.collapsed); }
+$('#btn-collapse').addEventListener('click', () => {
+  state.ui.collapsed = !state.ui.collapsed;
+  save(); applyCollapsed(); playClick();
+});
+
+/* ============================================================
+   模組一：晨間待辦
+   ============================================================ */
+function sunSVG(n) {
+  const ink = '#242B28', teal = '#20808D', mut = '#798784';
+  const w = 'stroke-width="1.5" stroke-linecap="round"';
+  if (n <= 0) return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="4.5" y1="17" x2="19.5" y2="17" stroke="${mut}" ${w}/><circle cx="12" cy="15.6" r="1.1" fill="${mut}"/></svg>`;
+  if (n === 1) return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="4.5" y1="17" x2="19.5" y2="17" stroke="${mut}" ${w}/><path d="M7.8 14.9a4.2 4.2 0 0 1 8.4 0" stroke="${ink}" ${w}/><line x1="12" y1="6.6" x2="12" y2="8.9" stroke="${teal}" ${w}/></svg>`;
+  if (n === 2) return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="4.5" y1="17" x2="19.5" y2="17" stroke="${mut}" ${w}/><circle cx="12" cy="13" r="4.2" stroke="${ink}" ${w}/><line x1="6" y1="5.4" x2="7.7" y2="7.1" stroke="${teal}" ${w}/><line x1="18" y1="5.4" x2="16.3" y2="7.1" stroke="${teal}" ${w}/></svg>`;
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="4.5" y1="17" x2="19.5" y2="17" stroke="${teal}" ${w}/><circle cx="12" cy="12.6" r="4.5" stroke="${teal}" ${w}/><line x1="12" y1="3.2" x2="12" y2="5.5" stroke="${teal}" ${w}/><line x1="5.2" y1="5" x2="7" y2="6.8" stroke="${teal}" ${w}/><line x1="18.8" y1="5" x2="17" y2="6.8" stroke="${teal}" ${w}/></svg>`;
+}
+function renderSunRing() {
+  const list = todosToday();
+  const done = list.filter(t => t.done).length;
+  const n = Math.min(done, 3);
+  const badge = $('#sun-badge');
+  badge.innerHTML = sunSVG(n);
+  badge.classList.toggle('full', list.length > 0 && list.every(t => t.done));
+  $('#todo-progress').textContent = `${n} / 3`;
+  $('#ring-fg').style.strokeDashoffset = 62.83 * (1 - Math.min(done / 3, 1));
+}
+
+function renderTodos() {
+  const list = todosToday();
+  const ul = $('#todo-list');
+  ul.innerHTML = list.length ? list.map((t, i) => `
+    <li class="t-row ${t.done ? 'done' : ''} ${t.pinned ? 'pinned' : ''} ${t.fresh ? 'slide-in' : ''}" data-id="${t.id}">
+      <button class="t-chk" role="checkbox" aria-checked="${t.done}" aria-label="完成：${esc(t.text)}">
+        ${t.done ? FILLED_CHK : DASH_CIRCLE('var(--text-muted)')}
+      </button>
+      <svg class="t-pin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5h6l-.7 6.2 3.2 3.3H6.5l3.2-3.3L9 4.5Z"/><path d="M12 14v5.5"/></svg>
+      <span class="t-text">${esc(t.text)}</span>
+      <button class="t-more" data-tmore aria-label="更多操作">···</button>
+    </li>`).join('')
+    : '<li class="t-empty">三件聚焦，開啟多巴胺的一天。</li>';
+  list.forEach(t => delete t.fresh);
+}
+function renderMorning() {
+  tickClock();
+  renderTodos();
+  renderSunRing();
+  syncGhostPlaceholder();
+  const input = $('#todo-input');
+  input.disabled = todosToday().length >= 3;
+  syncGhostPlaceholder();
+}
+
+/* 幽靈交接：昨晚寫下的「明天最想邁出的一小步」 */
+let ghostUsed = false;
+function ghostStep() {
+  if (ghostUsed) return '';
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const step = (state.reflect[todayStr(y)] || {}).step || '';
+  return step.trim();
+}
+function syncGhostPlaceholder() {
+  const input = $('#todo-input');
+  if (!input) return;
+  const g = ghostStep();
+  if (input.disabled) { input.dataset.ghost = ''; input.placeholder = '聚焦 3 件已滿，先完成一件'; return; }
+  if (g && todosToday().length === 0 && !ghostUsed) {
+    input.placeholder = `昨晚留痕：${g} · 按 Tab 採納`;
+    input.dataset.ghost = '1';
+  } else {
+    input.dataset.ghost = '';
+    input.placeholder = '寫下今日聚焦，按 Enter 落筆…';
+  }
+}
+
+function addTodo() {
+  const input = $('#todo-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const list = todosToday();
+  if (list.length >= 3) { shakeEl(input); toast('聚焦 3 件已滿，保持專注'); return; }
+  list.push({ id: uid(), text, done: false, fresh: true });
+  save();
+  playClick();
+  input.value = '';
+  renderTodos();
+  renderSunRing();
+  input.disabled = todosToday().length >= 3;
+  syncGhostPlaceholder();
+}
+$('#todo-input').addEventListener('input', () => { ghostUsed = true; syncGhostPlaceholder(); });
+$('#todo-input').addEventListener('keydown', e => {
+  if (e.key === 'Tab' && !e.target.value.trim()) {
+    const g = ghostStep();
+    if (g) {
+      e.preventDefault();
+      e.target.value = g;
+      ghostUsed = true;
+      syncGhostPlaceholder();
+      playClick();
+      e.target.focus();
+    }
+    return;
+  }
+  if (e.key === 'Enter') addTodo();
+});
+
+$('#todo-list').addEventListener('click', e => {
+  if (todoClickSuppressed) { todoClickSuppressed = false; return; }
+  if (e.target.closest('[data-tmore]')) return;
+  const li = e.target.closest('li[data-id]');
+  if (!li) return;
+  const t = todosToday().find(x => x.id === li.dataset.id);
+  if (!t) return;
+  t.done = !t.done;
+  save();
+  playClick();
+  li.classList.toggle('done', t.done);
+  li.querySelector('.t-chk').setAttribute('aria-checked', t.done);
+  li.querySelector('.t-chk').innerHTML = t.done ? FILLED_CHK : DASH_CIRCLE('var(--text-muted)');
+  renderSunRing();
+  if (t.done && todosToday().every(x => x.done)) toast('晨間聚焦全部完成');
+});
+
+let todoClickSuppressed = false;
+
+/* 待辦拖拽排序（長按或拖動；浮雕 + 綠松石指示線） */
+const tlist = $('#todo-list');
+let dragSt = null;
+
+tlist.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  if (e.target.closest('.t-chk, .t-more, .t-edit-input')) return;
+  const rowEl = e.target.closest('.t-row');
+  if (!rowEl || tlist.querySelectorAll('.t-row').length < 2) return;
+  dragSt = {
+    rowEl, id: rowEl.dataset.id,
+    x0: e.clientX, y0: e.clientY,
+    pointerId: e.pointerId,
+    started: false,
+    lpTimer: setTimeout(() => beginTodoDrag(), 300),
+  };
+});
+function beginTodoDrag() {
+  if (!dragSt || dragSt.started) return;
+  dragSt.started = true;
+  dragSt.rowEl.classList.add('dragging');
+  const line = document.createElement('div');
+  line.className = 'drop-line';
+  tlist.appendChild(line);
+  dragSt.line = line;
+  try { dragSt.rowEl.setPointerCapture(dragSt.pointerId); } catch (err) {}
+}
+tlist.addEventListener('pointermove', e => {
+  if (!dragSt) return;
+  if (!dragSt.started) {
+    if (Math.hypot(e.clientX - dragSt.x0, e.clientY - dragSt.y0) > 8) {
+      clearTimeout(dragSt.lpTimer);
+      beginTodoDrag();
+    } else return;
+  }
+  e.preventDefault();
+  dragSt.rowEl.style.transform = `translateY(${e.clientY - dragSt.y0}px) scale(.98)`;
+
+  const rows = [...tlist.querySelectorAll('.t-row')].filter(r => r !== dragSt.rowEl);
+  let insertAt = rows.length, lineY = null;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i].getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) { insertAt = i; lineY = r.top - 2; break; }
+  }
+  if (lineY === null) lineY = rows[rows.length - 1].getBoundingClientRect().bottom - 2;
+  dragSt.insertAt = insertAt;
+  const lr = tlist.getBoundingClientRect();
+  dragSt.line.style.opacity = '1';
+  dragSt.line.style.transform = `translateY(${lineY - lr.top}px)`;
+});
+function finishTodoDrag(e, commit) {
+  if (!dragSt) return;
+  clearTimeout(dragSt.lpTimer);
+  const st = dragSt;
+  dragSt = null;
+  if (!st.started) return;
+  st.rowEl.classList.remove('dragging');
+  st.rowEl.style.transform = '';
+  if (st.line) st.line.remove();
+  todoClickSuppressed = true;
+  setTimeout(() => { todoClickSuppressed = false; }, 50);
+  if (!(commit && st.insertAt !== undefined)) { renderTodos(); return; }
+  const arr = todosToday();
+  const from = arr.findIndex(x => x.id === st.id);
+  if (from < 0) { renderTodos(); return; }
+  const [item] = arr.splice(from, 1);
+  arr.splice(st.insertAt, 0, item);
+  save();
+  playClick();
+  flipTodoReorder();
+}
+tlist.addEventListener('pointerup', e => finishTodoDrag(e, true));
+tlist.addEventListener('pointercancel', e => finishTodoDrag(e, false));
+
+function flipTodoReorder() {
+  const rows = [...tlist.querySelectorAll('.t-row')];
+  const firstTop = new Map(rows.map(r => [r.dataset.id, r.getBoundingClientRect().top]));
+  renderTodos();
+  [...tlist.querySelectorAll('.t-row')].forEach(r => {
+    const f = firstTop.get(r.dataset.id);
+    if (f === undefined) return;
+    const dy = f - r.getBoundingClientRect().top;
+    if (Math.abs(dy) < 2) return;
+    r.style.transition = 'none';
+    r.style.transform = `translateY(${dy}px)`;
+    requestAnimationFrame(() => {
+      r.style.transition = 'transform .3s cubic-bezier(.2,.8,.3,1)';
+      r.style.transform = '';
+      r.addEventListener('transitionend', () => { r.style.transition = ''; r.style.transform = ''; }, { once: true });
+    });
+  });
+}
+
+function startTodoEdit(id) {
+  const li = $(`#todo-list li[data-id="${id}"]`);
+  if (!li) return;
+  const span = li.querySelector('.t-text');
+  const old = span.textContent;
+  span.innerHTML = '';
+  const input = document.createElement('input');
+  input.className = 't-edit-input';
+  input.maxLength = 60;
+  input.value = old;
+  span.appendChild(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = ok => {
+    if (done) return;
+    done = true;
+    const v = input.value.trim();
+    if (ok && v && v !== old) {
+      const t = todosToday().find(x => x.id === id);
+      if (t) t.text = v;
+      save();
+      playClick();
+      toast('已更新');
+    }
+    renderTodos();
+  };
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') commit(true);
+    if (ev.key === 'Escape') commit(false);
+  });
+  input.addEventListener('blur', () => commit(true));
+  input.addEventListener('click', ev => ev.stopPropagation());
+}
+
+/* ============================================================
+   模組二：輸出追蹤
+   ============================================================ */
+function activeOutputs() {
+  const f = state.ui.filter;
+  return state.outputs
+    .filter(o => !o.archived)
+    .filter(o => f === 'All' || o.category === f)
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+}
+
+function renderCatBar() {
+  const f = state.ui.filter;
+  $('#cat-bar').innerHTML = ['All', ...CATS].map(c =>
+    `<button class="cat-pill ${f === c ? 'active' : ''}" data-fc="${c}">${c}</button>`).join('');
+}
+$('#cat-bar').addEventListener('click', e => {
+  const chip = e.target.closest('[data-fc]');
+  if (!chip) return;
+  state.ui.filter = chip.dataset.fc;
+  save();
+  renderCatBar();
+  playClick();
+  renderOutputs();
+});
+
+function renderOutputs() {
+  syncArchCount();
+  const wrap = $('#out-stack');
+  const arr = activeOutputs();
+  if (!arr.length) {
+    wrap.innerHTML = `<div class="card" style="padding:46px 20px;text-align:center;font-size:12.5px;color:var(--text-muted)">${
+      state.outputs.some(o => !o.archived) ? '此分類尚無輸出。' : '尚無輸出。'}</div>`;
+    return;
+  }
+  try {
+  wrap.innerHTML = arr.map((o, i) => {
+    const dayNo = Math.max(0, daysBetween(o.date, todayStr())) + 1;
+    const left = 7 - dayNo;
+    const hasBody = !!(o.content || '').trim();
+    const s1 = !!o.insight.trim(), s2 = hasBody, s7 = !!(o.content7 || '').trim();
+    const pin = o.pinned ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6l-.7 6.2 3.2 3.3H6.5l3.2-3.3L9 4.5Z"/><path d="M12 14v5.5"/></svg>' : '';
+    const prog = left > 0 ? `第 ${Math.min(dayNo, 7)} 天 · 剩 ${left} 天` : '第 7 天 · 已期滿';
+
+    /* 思想展覽打孔票根（寬容期：無紅色逾期） */
+    const stampOf = k => {
+      const ts = Number((o.stamps || [])[k]) || 0;
+      return ts ? `${pad(new Date(ts).getMonth() + 1)}/${pad(new Date(ts).getDate())}` : '';
+    };
+    const stampEl = k => {
+      const ds = stampOf(k);
+      if (!ds) return '';
+      const anim = lastPunch && lastPunch.id === o.id && lastPunch.k === k ? ' stamp-in' : '';
+      return `<span class="stamp${anim}">PUNCHED ✓<br>${ds}</span>`;
+    };
+    const stub = (k, done, avail, doneTxt) => {
+      const cls = done ? 'state-done' : avail ? 'state-now' : 'state-lock';
+      const stamp = done ? stampEl(k) : '';
+      const state = done ? `<span class="stub-state">${doneTxt}</span>`
+        : avail ? '<span class="stub-state">今日待打孔</span>'
+        : `<span class="stub-state">鎖定 ${LOCK_SVG}</span>`;
+      return `<div class="stub ${cls}"><span class="stub-no">STUB 0${k + 1}</span>${stamp}${state}</div>`;
+    };
+    const ticket = `
+      <div class="ticket">
+        ${stub(0, s1, true, '已顯影')}
+        ${stub(1, s2, dayNo >= 3, '已打孔')}
+        ${stub(2, s7, dayNo >= 7, '已打孔')}
+      </div>`;
+
+    /* 記憶寬容期：錯過期限 → 溫和引導 */
+    const overdueStage = !hasBody && dayNo > 3;
+    const mid = hasBody
+      ? `<p class="mg-excerpt">${esc(o.content.trim())}</p>`
+      : `<p class="mg-guide">${overdueStage ? '大腦沉澱比預期更充分，現在轉化剛剛好。' : '今天想記下一句什麼？'}</p>`;
+
+    return `
+      <article class="card mg-card" data-id="${o.id}" style="animation:fadeUp .4s cubic-bezier(.2,.7,.3,1) ${Math.min(i,5)*55}ms both">
+        <div class="mg-top">
+          <div class="mg-left">
+            <button class="mg-chip" data-catfilter="${o.category}" title="篩選 ${o.category}">${o.category}</button>
+            <span class="mg-date tnum">${shortDate(o.date)}</span>
+            ${pin}
+          </div>
+          <span class="mg-right">
+            <span class="mg-prog tnum">${prog}</span>
+            <button class="mg-more" data-more aria-label="更多操作">⋯</button>
+          </span>
+        </div>
+        <h3 class="mg-title">${esc(o.title)}</h3>
+        ${ticket}
+        ${mid}
+        <div class="mg-foot">
+          <span class="mg-stat tnum">${words(o.content) + words(o.content7 || '')} words</span>
+          <button class="readmore" data-open>打開
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </article>`;
+  }).join('');
+  } catch (err) {
+    wrap.innerHTML = `<div class="card" style="padding:20px;text-align:left;font-size:12px;color:var(--stamp-red);white-space:pre-wrap">渲染錯誤：${esc(String((err && err.message) || err))}</div>`;
+  }
+}
+
+function syncArchCount() {
+  const n = state.outputs.filter(x => x.archived).length;
+  const el = $('#arch-count');
+  if (el) el.textContent = `(${n} 篇)`;
+}
+
+/* ---------- 閱讀抽屜（三段式手帳信箋） ---------- */
+const drawerWrap = $('#drawer-wrap');
+let drawerId = null;
+let drawerSaveTimer = null;
+let lastPunch = null;
+
+function openDrawer(id) {
+  const o = byId(id);
+  if (!o) return;
+  drawerId = id;
+  renderDrawer();
+  drawerWrap.classList.add('open');
+  syncDim();
+}
+function closeDrawer() {
+  if (drawerId) { flushDrawerSave(); renderOutputs(); }
+  drawerWrap.classList.remove('open');
+  drawerId = null;
+  syncDim();
+}
+function renderDrawer() {
+  const o = byId(drawerId);
+  if (!o) return;
+  $('#dw-cat').innerHTML = `${CAT_ICONS[o.category]}<b>${o.category}</b>`;
+  $('#dw-title').textContent = o.title;
+  const total = words(o.content) + words(o.content7 || '');
+  $('#dw-meta').textContent = `${fullDate(o.date)} · ${total} words`;
+  const dayNo = Math.max(0, daysBetween(o.date, todayStr())) + 1;
+  const s1 = !!o.insight.trim();
+  const d7lock = dayNo < 7;
+
+  $('#dw-body').innerHTML = `
+    <div class="dw-sec">
+      <p class="dw-lab">D1 · 直覺留痕</p>
+      <p class="dw-d1">${s1 ? esc(o.insight) : '<span class="dw-none">尚未記錄一句話</span>'}</p>
+    </div>
+    <div class="dw-sec">
+      <p class="dw-lab">D3 · 轉化書寫</p>
+      <textarea class="dw-editarea" id="dw-ta3" spellcheck="false" placeholder="今天想記下一句什麼？">${esc(o.content)}</textarea>
+    </div>
+    <div class="dw-sec">
+      <p class="dw-lab">D7 · 沉澱實踐</p>
+      ${d7lock
+        ? `<p class="dw-locked">D7 鎖定中（${7 - dayNo} 天後）</p>`
+        : `<textarea class="dw-editarea" id="dw-ta7" spellcheck="false" placeholder="沉澱之後的實踐與改變…">${esc(o.content7 || '')}</textarea>`}
+    </div>`;
+  $('#dw-bar').innerHTML = `
+    <button class="dw-btn ghost" data-dw-copy>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/></svg>
+      複製
+    </button>
+    <button class="dw-btn teal" data-dw-export>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="M8 10.5L12 14.5l4-4"/><path d="M4.5 19h15"/></svg>
+      導出
+    </button>
+    <button class="dw-btn solid" data-dw-done style="margin-left:auto">打卡</button>`;
+}
+
+/* D3/D7 無界紙自動保存（靜默）＋ 首寫蓋章 */
+function flushDrawerSave() {
+  if (!drawerId) return;
+  const o = byId(drawerId);
+  if (!o) return;
+  const t3 = $('#dw-ta3'), t7 = $('#dw-ta7');
+  let dirty = false;
+  if (!o.stamps) o.stamps = [0, 0, 0];
+  if (t3 && o.content !== t3.value) {
+    if (!o.content.trim() && t3.value.trim() && !o.stamps[1]) o.stamps[1] = Date.now();
+    o.content = t3.value; dirty = true;
+  }
+  if (t7 && (o.content7 || '') !== t7.value) {
+    if (!(o.content7 || '').trim() && t7.value.trim() && !o.stamps[2]) o.stamps[2] = Date.now();
+    o.content7 = t7.value; dirty = true;
+  }
+  if (dirty) { o.updatedAt = Date.now(); save(); }
+  clearTimeout(drawerSaveTimer);
+}
+$('#dw-body').addEventListener('input', e => {
+  const ta = e.target.closest('.dw-editarea');
+  if (!ta || !drawerId) return;
+  autoGrow(ta);
+  clearTimeout(drawerSaveTimer);
+  drawerSaveTimer = setTimeout(flushDrawerSave, 500);
+});
+function autoGrow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 420) + 'px';
+}
+
+drawerWrap.addEventListener('click', async e => {
+  if (e.target.closest('[data-dw-done]')) {
+    const cur = byId(drawerId);
+    if (!cur) return;
+    const t3 = $('#dw-ta3'), t7 = $('#dw-ta7');
+    if (t3 && !t3.value.trim() && !(cur.content7 || '').trim()) {
+      shakeEl(t3);
+      toast('先寫下一句，再打卡');
+      t3.focus();
+      return;
+    }
+    flushDrawerSave();
+    const cur2 = byId(drawerId);
+    const k = (Number(cur2.stamps[2]) || 0) > (Number(cur2.stamps[1]) || 0) ? 2 : 1;
+    lastPunch = { id: cur2.id, k };
+    playPunch();
+    closeDrawer();
+    return;
+  }
+  const o = byId(drawerId);
+  if (!o) return;
+  if (e.target.closest('[data-dw-copy]')) {
+    const parts = [o.insight, o.content, o.content7].map(s => (s || '').trim()).filter(Boolean);
+    const ok = await copyText(`${o.title}\n\n${parts.join('\n\n')}\n\n— Klingon · ${o.date}`);
+    toast(ok ? 'Copied' : '複製失敗');
+    return;
+  }
+  if (e.target.closest('[data-dw-export]')) { openExport(o); return; }
+});
+$('#dw-body').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    const btn = document.querySelector('#dw-bar [data-dw-done]');
+    if (btn) btn.click();
+  }
+});
+$('#dw-close').addEventListener('click', closeDrawer);
+$('#dw-backdrop').addEventListener('click', closeDrawer);
+
+async function copyText(text) {
+  try { window.focus(); } catch (e) {}
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+}
+
+/* ---------- 歷史歸檔 ---------- */
+$('#btn-archive').addEventListener('click', () => {
+  const box = $('#archive');
+  const listEl = $('#archive-list');
+  const opening = listEl.hidden;
+  listEl.hidden = !opening;
+  box.classList.toggle('open', opening);
+  if (!opening) {
+    const done = state.outputs.filter(x => x.archived).sort((a, b) => b.updatedAt - a.updatedAt);
+    listEl.innerHTML = done.length ? done.map(o => {
+      const d = new Date(Number((o.stamps || [])[2]) || o.updatedAt || o.createdAt);
+      return `<div class="a-row"><b>${esc(o.title)}</b><i>固化於 ${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ・ ${esc(summary(o.insight || o.content7 || o.content || '', 40)) || '（未留文字）'}</i></div>`;
+    }).join('') : '<p class="a-empty">尚無固化記憶。</p>';
+  }
+});
+
+/* ============================================================
+   模組三：晚思覆盤
+   ============================================================ */
+let breatheTimer = null;
+$('#btn-breathe').addEventListener('click', () => {
+  const btn = $('#btn-breathe');
+  const on = btn.classList.toggle('on');
+  btn.setAttribute('aria-pressed', on);
+  $('#breathe-label').textContent = on ? '呼吸中 · 點擊結束' : '15 分鐘呼吸沉澱';
+  playClick();
+  clearTimeout(breatheTimer);
+  if (on) breatheTimer = setTimeout(() => {
+    btn.classList.remove('on');
+    btn.setAttribute('aria-pressed', 'false');
+    $('#breathe-label').textContent = '15 分鐘呼吸沉澱';
+  }, 15 * 60 * 1000);
+});
+
+/* 今日思考留痕：純輸出聚合（嚴格過濾 0 字；以打卡寫入日期為今日）＋輕量摺疊 */
+function todayStages() {
+  const today = todayStr();
+  const items = [];
+  state.outputs.forEach(o => {
+    if (o.archived) return;
+    const secs = [];
+    const stageDone = (k, txt) => {
+      const written = !!String(txt || '').trim();
+      if (!written) return;
+      const ts = Number((o.stamps || [])[k]) || 0;
+      if (ts && todayStr(new Date(ts)) === today) secs.push({ k, text: String(txt) });
+    };
+    stageDone(0, o.insight);
+    stageDone(1, o.content);
+    stageDone(2, o.content7);
+    if (secs.length) items.push({ o, secs });
+  });
+  return items;
+}
+let replayOpen = false;
+function renderReplay() {
+  const wrap = $('#night-replay');
+  const items = todayStages();
+  if (!items.length) {
+    wrap.innerHTML = '<p class="rp-empty">今日無新輸出留痕 · 靜心放鬆入眠</p>';
+    return;
+  }
+  const sum = items.map(it => it.o.title).join(' · ');
+  const secs = items.map(({ o, secs: ss }) => `
+    <div class="rp-card">
+      <p class="rp-title">${esc(o.title)}</p>
+      ${ss.map(s => `
+        <div class="rp-sec">
+          <p class="rp-lab">D${[1, 3, 7][s.k]} · ${['直覺留痕', '轉化書寫', '沉澱實踐'][s.k]}</p>
+          <p class="rp-text">${esc(s.text)}</p>
+        </div>`).join('')}
+    </div>`).join('');
+  wrap.innerHTML = `
+    <button class="replay-bar" id="replay-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.5 5 8.5 4.5 5 4.5v13c3.5 0 5.5.5 7 2 1.5-1.5 3.5-2 7-2v-13c-3.5 0-5.5.5-7 2Z"/><path d="M12 6.5v13"/></svg>
+      <b>今日思考留痕 (${items.length} 篇)</b>
+      <span class="rb-sum">${esc(summary(sum, 30))}</span>
+      <span class="rb-toggle" id="rb-toggle">${replayOpen ? '收起 ▴' : '展開 ▾'}</span>
+    </button>
+    <div class="replay-body ${replayOpen ? 'open' : ''}">
+      <div class="replay-inner"><div>${secs}</div></div>
+    </div>`;
+}
+$('#night-replay').addEventListener('click', e => {
+  if (!e.target.closest('.replay-bar')) return;   // 僅點擊便簽條才切換，展開內容可自由選取
+  replayOpen = !replayOpen;
+  playClick();
+  renderReplay();
+});
+
+function renderNight() {
+  renderReplay();
+  const r = state.reflect[todayStr()] || {};
+  $('#r-win').value = r.win || '';
+  $('#r-weak').value = r.weak || '';
+  $('#r-step').value = r.step || '';
+  noteDirty.clear();
+}
+const NOTE_FIELDS = [['r-win', 'win'], ['r-weak', 'weak'], ['r-step', 'step']];
+const noteTimers = {};
+const noteDirty = new Set();
+function flushNotes() {
+  if (!noteDirty.size) return;
+  const d = todayStr();
+  state.reflect[d] = state.reflect[d] || {};
+  NOTE_FIELDS.forEach(([id, field]) => {
+    if (noteDirty.has(field)) state.reflect[d][field] = $('#' + id).value.trim();
+  });
+  noteDirty.clear();
+  save();
+  const ind = $('#note-saved');
+  ind.textContent = '已自動儲存';
+  ind.classList.add('show');
+  setTimeout(() => ind.classList.remove('show'), 1500);
+}
+NOTE_FIELDS.forEach(([id, field]) => {
+  $('#' + id).addEventListener('input', () => {
+    noteDirty.add(field);
+    clearTimeout(noteTimers[field]);
+    noteTimers[field] = setTimeout(flushNotes, 400);
+  });
+  $('#' + id).addEventListener('blur', flushNotes);
+});
+window.addEventListener('beforeunload', flushNotes);
+
+$('#btn-sleep').addEventListener('click', () => {
+  document.body.classList.add('sleep-mode');
+  $('#sleep-veil').classList.add('on');
+  playSingingBowl();
+});
+$('#sleep-veil').addEventListener('click', () => {
+  document.body.classList.remove('sleep-mode');
+  $('#sleep-veil').classList.remove('on');
+});
+
+/* ============================================================
+   新增 / 編輯思考
+   ============================================================ */
+const modalNew = $('#modal-new');
+let newCat = 'Life';
+let editingOutputId = null;
+function renderCatRow() {
+  $('#cat-row').innerHTML = CATS.map(c => `
+    <button class="cat-chip ${c === newCat ? 'active' : ''}" data-cat="${c}">${CAT_ICONS[c]}${c}</button>`).join('');
+}
+$('#cat-row').addEventListener('click', e => {
+  const chip = e.target.closest('[data-cat]');
+  if (!chip) return;
+  newCat = chip.dataset.cat;
+  renderCatRow();
+});
+function openOutputModal(o) {
+  editingOutputId = o ? o.id : null;
+  newCat = o ? o.category : 'Life';
+  renderCatRow();
+  $('#modal-new-title').textContent = o ? '編輯' : '新增';
+  $('#btn-new-save').textContent = o ? '儲存' : '建立';
+  $('#f-title').value = o ? o.title : '';
+  $('#f-insight').value = o ? o.insight : '';
+  modalNew.classList.add('open');
+  setTimeout(() => $('#f-title').focus(), 120);
+}
+$('#btn-new').addEventListener('click', () => openOutputModal(null));
+$('#btn-new-cancel').addEventListener('click', () => modalNew.classList.remove('open'));
+modalNew.addEventListener('click', e => { if (e.target === modalNew) modalNew.classList.remove('open'); });
+$('#f-title').addEventListener('keydown', e => { if (e.key === 'Enter') submitOutputModal(); });
+function submitOutputModal() {
+  const titleEl = $('#f-title');
+  let title = titleEl.value.trim();
+  let insight = $('#f-insight').value.trim();
+  // 主題留空時以第一句靈感自動成題——輸入永不被靜默拒絕
+  if (!title && !insight) { shakeEl(titleEl); titleEl.focus(); toast('先寫下主題或第一句靈感'); return; }
+  if (!title) title = summary(insight, 18);
+  // 長文貼進「第一句靈感」時直接歸位 D3，段落即貼即還原（僅在正文為空時接管）
+  const longPaste = insight.length > 100;
+  const pasteBody = longPaste ? restoreParas(insight) : '';
+  if (editingOutputId) {
+    const o = byId(editingOutputId);
+    if (o) {
+      o.title = title; o.category = newCat;
+      if (longPaste && !String(o.content || '').trim()) { o.content = pasteBody; o.insight = ''; }
+      else o.insight = insight;
+      o.updatedAt = Date.now();
+      save();
+      playClick();
+      modalNew.classList.remove('open');
+      renderOutputs();
+      toast('已更新');
+    }
+    return;
+  }
+  state.outputs.unshift(normalizeOutput({
+    title, category: newCat, insight: longPaste ? '' : insight, content: pasteBody, date: todayStr(), createdAt: Date.now(),
+  }));
+  save();
+  playClick();
+  modalNew.classList.remove('open');
+  renderOutputs();
+  toast('已建立');
+}
+$('#btn-new-save').addEventListener('click', submitOutputModal);
+
+/* 多窗口同步：焦點回到本窗口時，與儲存庫合流（雙方新增皆保留） */
+window.addEventListener('focus', () => {
+  if (drawerWrap.classList.contains('open') || modalNew.classList.contains('open')) return;
+  syncFromStorage(false);
+});
+
+/* ============================================================
+   出版級導出分享卡（3:4 自適應 ＋ 紙白/曜石）
+   ============================================================ */
+const EXP_THEMES = {
+  paper: { bg: '#FBFAF4', ink: '#242B28', body: '#424C49', muted: '#798784', chipBg: '#EEF3EE', chipTx: '#345C4B', accent: '#20808D', border: '#E6E2D4', qm: 'rgba(32,128,141,0.10)', colo: '#A4B2AF' },
+  dark:  { bg: '#17191B', ink: '#F2F1EC', body: '#C7CCC6', muted: '#8B948F', chipBg: 'rgba(255,255,255,0.08)', chipTx: '#9FC3BA', accent: '#7FB5AE', border: 'rgba(255,255,255,0.12)', qm: 'rgba(143,182,174,0.14)', colo: '#6E7773' },
+};
+const EXP_W = 450, EXP_S = 2;
+const EXP_SERIF = 'Georgia, "Noto Serif SC", "Noto Serif TC", serif';
+const EXP_SANS = '-apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif';
+
+function expMeasurer() {
+  const m = document.createElement('canvas').getContext('2d');
+  return {
+    set(font) { m.font = font; },
+    wrap(text, max) {
+      const out = [];
+      let line = '';
+      const push = () => { if (line) { out.push(line); line = ''; } };
+      for (const p of String(text).split(/(\s+)/)) {
+        if (!p) continue;
+        if (/^\s+$/.test(p)) { if (line) line += ' '; continue; }
+        if (/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(p)) {
+          for (const ch of Array.from(p)) {
+            if (line && m.measureText(line + ch).width > max) { push(); line = ch; }
+            else line += ch;
+          }
+        } else if (line && m.measureText(line + p).width > max) { push(); line = p; }
+        else line += p;
+      }
+      push();
+      return out;
+    },
+  };
+}
+function drawSpark(c, x, y, r, color) {
+  c.save();
+  c.strokeStyle = color; c.lineWidth = 1.5; c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(x, y - r); c.lineTo(x, y + r);
+  c.moveTo(x - r * .87, y - r / 2); c.lineTo(x + r * .87, y + r / 2);
+  c.moveTo(x + r * .87, y - r / 2); c.lineTo(x - r * .87, y + r / 2);
+  c.stroke();
+  c.restore();
+}
+function roundRectPath(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+function drawColophon(c, W, H, t, align) {
+  c.save();
+  c.font = '600 9px ' + EXP_SANS;
+  try { c.letterSpacing = '1.35px'; } catch (err) {}
+  const txt = 'KLINGON · ARCHIVE';
+  const tw = c.measureText(txt).width;
+  const total = 14 + 8 + tw;
+  const x0 = align === 'right' ? W - 34 - total : (W - total) / 2;
+  const y = H - 26;
+  c.strokeStyle = t.colo; c.lineWidth = 1.4;
+  roundRectPath(c, x0, y - 11, 14, 14, 4); c.stroke();
+  c.beginPath(); c.arc(x0 + 7, y - 4, 3.1, 0, Math.PI * 2); c.stroke();
+  c.fillStyle = t.colo;
+  c.textBaseline = 'middle';
+  c.fillText(txt, x0 + 22, y - 4);
+  try { c.letterSpacing = '0px'; } catch (err) {}
+  c.restore();
+}
+
+function renderShareCard(o, theme) {
+  const t = EXP_THEMES[theme];
+  const cv = document.createElement('canvas');
+  const M = expMeasurer();
+  const PAD = 34, MAX = EXP_W - PAD * 2;
+  const bodyText = [(o.content || '').trim(), (o.content7 || '').trim()].filter(Boolean).join('\n\n')
+    || o.insight || o.title;
+  const short = words(bodyText) < 50;
+
+  let H, bigLines = [], titleLines = [], bodyParas = [];
+  if (short) {
+    H = 600;
+    M.set('600 24px ' + EXP_SERIF);
+    bigLines = M.wrap(bodyText, MAX - 26);
+  } else {
+    M.set('600 26px ' + EXP_SERIF);
+    titleLines = M.wrap(o.title, MAX);
+    M.set('400 14.5px ' + EXP_SERIF);
+    bodyParas = bodyText.split(/\n+/).filter(p => p.trim()).map(p => M.wrap(p, MAX));
+    H = 46 + 22 + 12 + titleLines.length * 36 + 16 + 19;
+    bodyParas.forEach(ls => H += ls.length * 26 + 12);
+    H += 58;
+    H = Math.max(H, 600);
+  }
+
+  cv.width = EXP_W * EXP_S; cv.height = H * EXP_S;
+  const g = cv.getContext('2d');
+  g.scale(EXP_S, EXP_S);
+  g.fillStyle = t.bg; g.fillRect(0, 0, EXP_W, H);
+  g.strokeStyle = t.border; g.lineWidth = 1;
+  roundRectPath(g, 10.5, 10.5, EXP_W - 21, H - 21, 12); g.stroke();
+
+  g.textBaseline = 'middle';
+  g.font = '600 10px ' + EXP_SANS;
+  try { g.letterSpacing = '1.2px'; } catch (err) {}
+  const chipTxt = o.category.toUpperCase();
+  const cw = g.measureText(chipTxt).width + 20;
+  g.fillStyle = t.chipBg;
+  roundRectPath(g, PAD, 31, cw, 18, 5); g.fill();
+  g.fillStyle = t.chipTx;
+  g.fillText(chipTxt, PAD + 10, 40.5);
+  try { g.letterSpacing = '0px'; } catch (err) {}
+  g.font = '400 10px ' + EXP_SANS;
+  g.fillStyle = t.muted;
+  g.textAlign = 'right';
+  g.fillText(o.date.replace(/-/g, '/'), EXP_W - PAD - 16, 40.5);
+  g.textAlign = 'left';
+  drawSpark(g, EXP_W - PAD - 4, 40, 6.5, t.accent);
+
+  if (short) {
+    const LH = 38;
+    const startY = (H - bigLines.length * LH) / 2;
+    g.font = '400 120px ' + EXP_SERIF;
+    g.fillStyle = t.qm;
+    g.fillText('\u201C', PAD + 2, startY + 6);
+    g.font = '600 24px ' + EXP_SERIF;
+    g.fillStyle = t.ink;
+    g.textAlign = 'center';
+    bigLines.forEach((l, i) => g.fillText(l, EXP_W / 2, startY + (i + 1) * LH - 8));
+    g.textAlign = 'left';
+    drawColophon(g, EXP_W, H, t, 'center');
+  } else {
+    let y = 46 + 22;
+    g.font = '600 26px ' + EXP_SERIF;
+    g.fillStyle = t.ink;
+    titleLines.forEach(l => { g.fillText(l, PAD, y + 26); y += 36; });
+    y += 6;
+    g.strokeStyle = t.border;
+    g.beginPath(); g.moveTo(PAD, y + .5); g.lineTo(EXP_W - PAD, y + .5); g.stroke();
+    y += 22;
+    g.font = '400 14.5px ' + EXP_SERIF;
+    g.fillStyle = t.body;
+    bodyParas.forEach(ls => {
+      ls.forEach(l => { g.fillText(l, PAD, y + 18); y += 26; });
+      y += 12;
+    });
+    drawColophon(g, EXP_W, H, t, 'right');
+  }
+  return cv;
+}
+
+const expModal = $('#export-modal');
+let expState = null;
+function syncDim() {
+  const on = !!document.querySelector('#drawer-wrap.open, #export-modal.open, #spotlight.open, #nb-overlay.open, #hist-overlay.show');
+  document.body.classList.toggle('scene-dim', on);
+}
+function openExport(o) {
+  expState = { o, theme: 'paper' };
+  syncExpThemes();
+  drawExportPreview();
+  expModal.classList.add('open');
+  syncDim();
+}
+function closeExport() {
+  expModal.classList.remove('open');
+  expState = null;
+  syncDim();
+}
+function syncExpThemes() {
+  $$('.exp-theme').forEach(b => b.classList.toggle('active', !!expState && b.dataset.theme === expState.theme));
+}
+function drawExportPreview() {
+  if (!expState) return;
+  const cv = renderShareCard(expState.o, expState.theme);
+  const target = $('#exp-canvas');
+  target.width = cv.width;
+  target.height = cv.height;
+  target.getContext('2d').drawImage(cv, 0, 0);
+}
+$('#exp-close').addEventListener('click', closeExport);
+expModal.addEventListener('click', e => { if (e.target === expModal) closeExport(); });
+$$('.exp-theme').forEach(b => b.addEventListener('click', () => {
+  if (!expState) return;
+  expState.theme = b.dataset.theme;
+  syncExpThemes();
+  drawExportPreview();
+  playClick();
+}));
+$('#exp-copy').addEventListener('click', async () => {
+  if (!expState) return;
+  try {
+    window.focus();
+    const blob = await new Promise(res => $('#exp-canvas').toBlob(res, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('Copied');
+  } catch (err) { toast('複製失敗'); }
+});
+$('#exp-download').addEventListener('click', () => {
+  if (!expState) return;
+  const a = document.createElement('a');
+  a.href = $('#exp-canvas').toDataURL('image/png');
+  a.download = `klingon-${expState.o.date}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('已下載');
+});
+
+/* ============================================================
+   卡片互動
+   ============================================================ */
+$('#out-stack').addEventListener('click', e => {
+  const catBtn = e.target.closest('[data-catfilter]');
+  if (catBtn) {
+    state.ui.filter = catBtn.dataset.catfilter;
+    save();
+    renderCatBar();
+    renderOutputs();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const card = e.target.closest('article[data-id]');
+  if (!card) return;
+  const o = byId(card.dataset.id);
+  if (!o) return;
+  const more = e.target.closest('[data-more]');
+  if (more) {
+    e.stopPropagation();
+    const r = more.getBoundingClientRect();
+    openCtx({ kind: 'output', id: o.id, x: r.right, y: r.bottom + 6, alignRight: true });
+    return;
+  }
+  if (e.target.closest('[data-open]')) {
+    openDrawer(o.id);
+    return;
+  }
+});
+
+/* ============================================================
+   Spotlight 全域檢索（Cmd+K）
+   ============================================================ */
+const spotlight = $('#spotlight');
+const spotInput = $('#spot-input');
+let spotRows = [];
+
+function openSpotlight() {
+  spotlight.classList.add('open');
+  spotInput.value = '';
+  renderSpot('');
+  syncDim();
+  setTimeout(() => spotInput.focus(), 100);
+}
+function closeSpotlight() {
+  spotlight.classList.remove('open');
+  closeCtx();
+  syncDim();
+}
+$('#btn-search').addEventListener('click', openSpotlight);
+spotlight.addEventListener('click', e => { if (e.target === spotlight) closeSpotlight(); });
+spotInput.addEventListener('input', () => renderSpot(spotInput.value));
+
+function searchAll(q) {
+  q = q.trim().toLowerCase();
+  const res = [];
+  [...state.outputs].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updatedAt - a.updatedAt).forEach(o => {
+    const hay = (o.title + ' ' + o.insight + ' ' + o.content + ' ' + (o.content7 || '') + ' ' + o.category).toLowerCase();
+    if (!q || hay.includes(q)) res.push({ type: 'output', id: o.id, text: o.title, date: o.date, pinned: o.pinned, archived: o.archived, cat: o.category });
+  });
+  todosToday().forEach(t => {
+    if (!q || t.text.toLowerCase().includes(q)) res.push({ type: 'todo', id: t.id, text: t.text, date: todayStr(), pinned: t.pinned });
+  });
+  const r = state.reflect[todayStr()];
+  if (r) [['win', '肯定'], ['weak', '弱點'], ['step', '一步']].forEach(([f, tag]) => {
+    if (r[f] && (!q || r[f].toLowerCase().includes(q))) res.push({ type: 'reflect', field: f, text: r[f], tag, date: todayStr() });
+  });
+  return res.slice(0, 12);
+}
+function renderSpot(q) {
+  const box = $('#spot-results');
+  if (!q.trim()) {
+    spotRows = [];
+    box.innerHTML = '<p class="sp-quiet">鍵入關鍵字檢索...</p>';
+    return;
+  }
+  spotRows = searchAll(q);
+  if (!spotRows.length) { box.innerHTML = '<p class="sp-quiet">無匹配結果</p>'; return; }
+  box.innerHTML = spotRows.map((r, i) => `
+    <div class="sp-row" data-i="${i}" data-type="${r.type}" ${r.id ? `data-id="${r.id}"` : ''} ${r.field ? `data-field="${r.field}"` : ''}>
+      ${r.type === 'output' ? `<span class="sp-chip ${r.archived ? 'arch' : ''}">${r.archived ? 'Archived' : r.cat}</span>` : `<span class="sp-chip">${r.type === 'todo' ? '晨間' : '晚思'}</span>`}
+      <span class="sp-text">${r.pinned ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-1px;margin-right:4px"><path d="M9 4.5h6l-.7 6.2 3.2 3.3H6.5l3.2-3.3L9 4.5Z"/><path d="M12 14v5.5"/></svg>' : ''}${esc(r.text)}</span>
+      <span class="sp-date">${(r.date || '').slice(5).replace('-', '/')}</span>
+      ${r.type !== 'reflect' ? '<button class="sp-more" data-more aria-label="操作">···</button>' : ''}
+    </div>`).join('');
+}
+$('#spot-results').addEventListener('click', e => {
+  const more = e.target.closest('[data-more]');
+  const row = e.target.closest('.sp-row');
+  if (!row) return;
+  const r = spotRows[+row.dataset.i];
+  if (!r) return;
+  if (more) {
+    e.stopPropagation();
+    const rect = more.getBoundingClientRect();
+    openCtx({ kind: r.type, id: r.id, rowEl: row, x: rect.right, y: rect.bottom + 6, alignRight: true });
+    return;
+  }
+  closeSpotlight();
+  if (r.type === 'output') { setView('output'); openDrawer(r.id); }
+  if (r.type === 'todo') setView('morning');
+  if (r.type === 'reflect') setView('night');
+});
+
+/* ---------- 操作選單（置頂/編輯/刪除） ---------- */
+const ctx = $('#ctx-menu');
+let ctxData = null;
+function openCtx(d) {
+  ctxData = d;
+  ctx.innerHTML = `
+    <button class="ctx-item" data-act="pin">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6l-.7 6.2 3.2 3.3H6.5l3.2-3.3L9 4.5Z"/><path d="M12 14v5.5"/></svg>
+      置頂
+    </button>
+    <button class="ctx-item" data-act="rename">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L16.5 4l3.5 3.5L8.5 19 4 20Z"/></svg>
+      編輯
+    </button>
+    <button class="ctx-item danger" data-act="del">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5h15"/><path d="M8 6.5V5a1.5 1.5 0 0 1 1.5-1.5h5A1.5 1.5 0 0 1 16 5v1.5"/><path d="M6.5 6.5l1 13h9l1-13"/></svg>
+      <span>刪除</span>
+    </button>`;
+  const mx = d.alignRight ? Math.max(10, d.x - 158) : d.x;
+  ctx.style.left = Math.min(mx, window.innerWidth - 170) + 'px';
+  ctx.style.top = Math.min(d.y, window.innerHeight - 150) + 'px';
+  ctx.classList.add('show');
+}
+function closeCtx() { ctx.classList.remove('show'); ctxData = null; }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ctx') && !e.target.closest('.sp-more') && !e.target.closest('.more-btn') && !e.target.closest('.t-more')) closeCtx();
+});
+ctx.addEventListener('click', e => {
+  const item = e.target.closest('.ctx-item');
+  if (!item || !ctxData) return;
+  const act = item.dataset.act;
+  const d = ctxData;
+  if (act === 'pin') {
+    if (d.kind === 'output') {
+      const i = state.outputs.findIndex(x => x.id === d.id);
+      if (i > -1) {
+        const it = state.outputs[i];
+        it.pinned = true;
+        state.outputs.splice(i, 1);
+        state.outputs.unshift(it);
+        save();
+        renderOutputs();
+        toast('已置頂');
+      }
+    }
+    if (d.kind === 'todo') {
+      const arr = todosToday();
+      const i = arr.findIndex(x => x.id === d.id);
+      if (i > -1) {
+        const t = arr[i];
+        t.pinned = !t.pinned;
+        if (t.pinned) { arr.splice(i, 1); arr.unshift(t); }
+        save();
+        playClick();
+        flipTodoReorder();
+        toast(t.pinned ? '已置頂' : '已取消');
+      }
+    }
+    closeCtx(); return;
+  }
+  if (act === 'rename') {
+    closeCtx();
+    if (d.kind === 'output') { const o = byId(d.id); if (o) openOutputModal(o); }
+    else startRename(d);
+    return;
+  }
+  if (act === 'del') {
+    if (!item.classList.contains('armed')) {
+      item.classList.add('armed');
+      const s = item.querySelector('span');
+      if (s) s.textContent = '確認刪除？';
+      setTimeout(() => { if (document.body.contains(item)) { item.classList.remove('armed'); const s2 = item.querySelector('span'); if (s2) s2.textContent = '刪除'; } }, 2600);
+      return;
+    }
+    if (d.kind === 'output') {
+      tombstone(d.id);
+      state.outputs = state.outputs.filter(x => x.id !== d.id);
+      save(); renderOutputs(); toast('已刪除');
+    } else if (d.kind === 'todo') {
+      const arr = todosToday();
+      const i = arr.findIndex(x => x.id === d.id);
+      if (i > -1) { tombstone(d.id); arr.splice(i, 1); save(); renderTodos(); renderSunRing(); renderMorning(); toast('已刪除'); }
+    }
+    closeCtx();
+  }
+});
+$('#todo-list').addEventListener('click', e => {
+  const more = e.target.closest('[data-tmore]');
+  if (!more) return;
+  e.stopPropagation();
+  const li = more.closest('li[data-id]');
+  const rect = more.getBoundingClientRect();
+  openCtx({ kind: 'todo', id: li.dataset.id, x: rect.left, y: rect.bottom + 6, alignRight: false });
+});
+
+/* 行內重命名（Spotlight 列表） */
+function startRename(d) {
+  const row = $('#spot-results').querySelector(`.sp-row[data-id="${d.id}"]`);
+  const span = row && row.querySelector('.sp-text');
+  let input, old;
+  if (span) {
+    old = spotRows[+row.dataset.i] ? spotRows[+row.dataset.i].text : '';
+    span.innerHTML = '';
+    input = document.createElement('input');
+    input.maxLength = 90;
+    input.value = old;
+    span.appendChild(input);
+  } else if (d.kind === 'todo') {
+    startTodoEdit(d.id);
+    return;
+  } else return;
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = ok => {
+    if (done) return;
+    done = true;
+    const v = input.value.trim();
+    if (ok && v && v !== old) {
+      if (d.kind === 'output') { const o = byId(d.id); if (o) { o.title = v; o.updatedAt = Date.now(); save(); renderOutputs(); } }
+      if (d.kind === 'todo') { const t = todosToday().find(x => x.id === d.id); if (t) { t.text = v; save(); renderTodos(); } }
+      toast('已更新');
+    }
+    renderSpot(spotInput.value);
+  };
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') commit(true);
+    if (ev.key === 'Escape') commit(false);
+  });
+  input.addEventListener('blur', () => commit(true));
+  input.addEventListener('click', ev => ev.stopPropagation());
+}
+
+/* 全域快捷鍵 */
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    spotlight.classList.contains('open') ? closeSpotlight() : openSpotlight();
+  }
+  if (e.key === 'Escape') {
+    closeSpotlight();
+    modalNew.classList.remove('open');
+    closeExport();
+    nbClose();
+    $('#hist-overlay').classList.remove('show');
+    closeDrawer();
+    document.body.classList.remove('sleep-mode');
+    $('#sleep-veil').classList.remove('on');
+  }
+});
+
+/* ============================================================
+   數據主權：備份 / 恢復
+   ============================================================ */
+$('#btn-export').addEventListener('click', () => {
+  try {
+    const blob = new Blob([localStorage.getItem(KEY) || '{}'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `klingon-backup-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('已導出');
+  } catch (e) { toast('導出失敗'); }
+});
+$('#btn-restore').addEventListener('click', function () {
+  if (!this.classList.contains('armed')) {
+    this.classList.add('armed');
+    this.querySelector('span').textContent = '確認覆蓋資料？';
+    setTimeout(() => { if (document.body.contains(this)) { this.classList.remove('armed'); this.querySelector('span').textContent = '恢復'; } }, 3000);
+    return;
+  }
+  this.classList.remove('armed');
+  this.querySelector('span').textContent = '恢復';
+  $('#restore-file').click();
+});
+$('#restore-file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const obj = JSON.parse(r.result);
+      if (!obj || typeof obj !== 'object' || !(obj.todos || obj.outputs || obj.reflect)) throw new Error('bad');
+      localStorage.setItem(KEY, JSON.stringify(obj));
+      location.reload();
+    } catch (err) { toast('備份檔案格式不正確'); }
+  };
+  r.readAsText(f);
+});
+
+/* ---------- 精密時鐘啟動 ---------- */
+setInterval(tickClock, 15000);
+
+/* ============================================================
+   模組四：月度雙手帳 + 出版級 PDF 引擎
+   ============================================================ */
+let nbTab = 'morning';
+let nbMonth = null;   // { y, m }
+const nbOverlay = $('#nb-overlay');
+const NB_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+function nbOpen(monthOffset = 0) {
+  const n = new Date();
+  const d = new Date(n.getFullYear(), n.getMonth() + monthOffset, 1);
+  nbMonth = { y: d.getFullYear(), m: d.getMonth() + 1 };
+  renderNb();
+  nbOverlay.classList.add('open');
+  syncDim();
+}
+function nbClose() {
+  nbOverlay.classList.remove('open');
+  syncDim();
+}
+function nbDaysIn(y, m) { return new Date(y, m, 0).getDate(); }
+function nbKey(y, m, d) { return `${y}-${pad(m)}-${pad(d)}`; }
+
+const NB_CHK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="var(--accent)"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const NB_CIRCLE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="3.4 3.6" stroke-linecap="round"/></svg>';
+
+function renderNb() {
+  if (!nbMonth) return;
+  const { y, m } = nbMonth;
+  const dim = nbDaysIn(y, m);
+  const now = new Date();
+  const isCur = now.getFullYear() === y && (now.getMonth() + 1) === m;
+  const lastD = isCur ? now.getDate() : dim;
+
+  /* 扉頁：生命星圖（晨間節律） */
+  let full = 0;
+  const cells = [];
+  for (let d = 1; d <= dim; d++) {
+    let cls = 'future';
+    if (d <= lastD) {
+      const list = state.todos[nbKey(y, m, d)] || [];
+      const done = list.filter(t => t.done).length;
+      if (list.length && done === list.length) { cls = 'full'; full++; }
+      else if (done > 0) cls = 'part';
+      else cls = 'empty';
+    }
+    cells.push(`<div class="lg-cell"><span class="lg-dot ${cls}"></span><span class="lg-n">${d}</span></div>`);
+  }
+  const rate = lastD ? Math.round(full / lastD * 100) : 0;
+  let nbNights = 0;
+  const nbOutDays = new Set();
+  for (let d = 1; d <= lastD; d++) {
+    const r = state.reflect[nbKey(y, m, d)];
+    if (r && (String(r.win || '').trim() || String(r.weak || '').trim() || String(r.step || '').trim())) nbNights++;
+  }
+  state.outputs.forEach(o => (o.stamps || []).forEach(ts => {
+    if (!ts) return;
+    const dt = new Date(Number(ts));
+    if (dt.getFullYear() === y && (dt.getMonth() + 1) === m) nbOutDays.add(dt.getDate());
+  }));
+
+  /* 內頁日塊 */
+  let blocks = '';
+  if (nbTab === 'morning') {
+    for (let d = 1; d <= lastD; d++) {
+      const list = state.todos[nbKey(y, m, d)] || [];
+      if (!list.length) continue;
+      const wd = NB_WEEKDAYS[new Date(y, m - 1, d).getDay()];
+      blocks += `<div class="nb-day"><h4>${m} 月 ${d} 日 ・ 週${wd}</h4><ul>${
+        list.map(t => `<li class="${t.done ? 'done' : ''}">${t.done ? NB_CHK : NB_CIRCLE}${esc(t.text)}</li>`).join('')}</ul></div>`;
+    }
+  } else {
+    for (let d = 1; d <= lastD; d++) {
+      const r = state.reflect[nbKey(y, m, d)];
+      if (!r) continue;
+      const lines = [
+        ['win', '今天最值得肯定的一刻'],
+        ['weak', '覺察到的一個小弱點'],
+        ['step', '明天最想邁出的一小步'],
+      ].filter(([f]) => String(r[f] || '').trim())
+       .map(([f, lab]) => `<p class="nb-ref"><span class="nb-ref-l">✦ ${lab}</span>${esc(r[f])}</p>`);
+      if (!lines.length) continue;
+      const wd = NB_WEEKDAYS[new Date(y, m - 1, d).getDay()];
+      blocks += `<div class="nb-day"><h4>${m} 月 ${d} 日 ・ 週${wd}</h4>${lines.join('')}</div>`;
+    }
+  }
+
+  $('#nb-sheet').innerHTML = `
+    <div class="nb-front">
+      <p class="nb-kicker">${y} 年 ${m} 月 ・ 扉頁</p>
+      <h3 class="nb-grid-title">生命星圖 · ${dim} 天</h3>
+      <div class="lg-grid">${cells.join('')}</div>
+      <p class="lg-rate">${rate}% 節律達成率</p>
+      <p class="lg-extra">晚思 ${nbNights} 晚 ・ 輸出打卡 ${nbOutDays.size} 天</p>
+      <p class="lg-legend"><span title="當日待辦全部完成"><i class="lg-dot full"></i>全達成</span><span title="當日待辦完成至少一件"><i class="lg-dot part"></i>完成 ≥1</span><span title="當日沒有留下待辦"><i class="lg-dot empty"></i>無待辦</span><span title="日期尚未到達"><i class="lg-dot future"></i>未到</span></p>
+    </div>
+    ${blocks || `<p class="nb-empty">${nbTab === 'morning' ? '本月尚無晨間軌跡。' : '本月尚無晚思留痕。'}</p>`}`;
+}
+
+$('#btn-nb').addEventListener('click', () => { playClick(); nbOpen(0); });
+$('#nb-close').addEventListener('click', nbClose);
+nbOverlay.addEventListener('click', e => { if (e.target === nbOverlay) nbClose(); });
+$$('.nb-tab').forEach(b => b.addEventListener('click', () => {
+  if (nbTab === b.dataset.nbtab) return;
+  nbTab = b.dataset.nbtab;
+  $$('.nb-tab').forEach(x => x.classList.toggle('active', x === b));
+  playClick();
+  renderNb();
+}));
+
+/* 導出 PDF：原生打印 + 出版級 @media print 樣式（防斷頁 + 頁眉） */
+$('#nb-pdf').addEventListener('click', () => {
+  playClick();
+  document.body.classList.add('nb-print');
+  const cleanup = () => { document.body.classList.remove('nb-print'); window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(() => window.print(), 80);
+});
+
+/* 月度時令提醒：當月最後一天或次月前 2 天，每日至多一次 */
+function nbNudgeCheck() {
+  const n = new Date();
+  const dim = nbDaysIn(n.getFullYear(), n.getMonth() + 1);
+  const edge = n.getDate() === dim || n.getDate() <= 2;
+  if (!edge) return;
+  const t = todayStr();
+  if ((state.ui.nbNudge || '') === t) return;
+  state.ui.nbNudge = t;
+  save();
+  const prev = n.getDate() <= 2 ? -1 : 0;
+  const mn = new Date(n.getFullYear(), n.getMonth() + 1 + prev, 1);
+  $('#nb-nudge-text').textContent = `${mn.getMonth() + 1} 月時光已成冊 · 查看月度手帳`;
+  const nn = $('#nb-nudge');
+  const hide = () => nn.classList.remove('show');
+  $('#nb-nudge-open').onclick = () => { hide(); nbOpen(prev); };
+  $('#nb-nudge-later').onclick = hide;
+  nn.classList.add('show');
+  setTimeout(hide, 12000);
+}
+
+/* ---------- 種子數據（僅全新環境：localStorage 完全為空時） ---------- */
+function seedState() {
+  const now = Date.now();
+  const t = todayStr();
+  const yst = todayStr(new Date(now - 86400000));
+  state.todos[t] = [
+    { id: uid(), text: '晨間散步 15 分鐘', done: true, pinned: false },
+    { id: uid(), text: '寫下今天最重要的一件事', done: false, pinned: false },
+  ];
+  state.reflect[yst] = {
+    win: '準時在 11 點前放下手機',
+    weak: '下午被通知打斷三次，注意力散了',
+    step: '明早第一件事：先寫三行字，再開訊息',
+  };
+  state.outputs.unshift(normalizeOutput({
+    title: '《十一種孤獨》', category: 'Book',
+    insight: '「人不是因為孤獨而可悲，而是因為不敢承認孤獨。」',
+    content: '所謂長大，也許就是把「為什麼是我」慢慢換成「原來不只我」。\n\n下一頁想驗證：孤獨感是否來自那些沒說出口的期待。',
+    date: t, createdAt: now - 2 * 86400000, updatedAt: now - 3600000,
+  }));
+  state.outputs.unshift(normalizeOutput({
+    title: '《花樣年華》重看', category: 'Movie',
+    insight: '「如果我多一張船票，你會不會跟我走？」',
+    date: t, createdAt: now - 3600000,
+  }));
+  save();
+  setTimeout(() => toast('已為你備好示例數據，可隨時刪除'), 1400);
+}
+
+/* ============================================================
+   磁盤持久層：本地 JSON 自動同步——瀏覽器資料被清也能自動復原
+   ============================================================ */
+let diskDir = null;
+let diskReady = false;
+function richness(s) {
+  return (s.outputs || []).length + Object.keys(s.todos || {}).length + Object.keys(s.reflect || {}).length;
+}
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open('klingon-fs', 1);
+    rq.onupgradeneeded = () => { rq.result.createObjectStore('handles'); };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function idbSet(k, v) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(v, k);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(k) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('handles', 'readonly');
+    const rq = tx.objectStore('handles').get(k);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+function diskLabel() {
+  const el = $('#btn-disk-label'); if (!el) return;
+  el.textContent = diskReady ? '本地存檔 ✓' : '啟用本地存檔';
+}
+async function diskWrite() {
+  if (!diskDir || !diskReady) return;
+  try {
+    const fh = await diskDir.getFileHandle('klingon-data.json', { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify({ savedAt: Date.now(), data: state }));
+    await w.close();
+  } catch (e) {}
+}
+async function diskPullIfNewer() {
+  try {
+    const fh = await diskDir.getFileHandle('klingon-data.json', { create: false });
+    const obj = JSON.parse(await (await fh.getFile()).text());
+    if (!obj || !obj.data) return;
+    const localAt = Number(localStorage.getItem('klingon.savedAt')) || 0;
+    if ((Number(obj.savedAt) || 0) > localAt && richness(obj.data) > 0) {
+      localStorage.setItem(KEY, JSON.stringify(obj.data));
+      localStorage.setItem('klingon.savedAt', String(obj.savedAt));
+      location.reload();
+    }
+  } catch (e) {}
+}
+async function diskEnable() {
+  if (!window.showDirectoryPicker) { toast('此瀏覽器不支援本地檔案同步'); return; }
+  try {
+    diskDir = await window.showDirectoryPicker({ id: 'klingonData', mode: 'readwrite' });
+    await idbSet('dir', diskDir);
+    let restored = false;
+    try {
+      const fh = await diskDir.getFileHandle('klingon-data.json', { create: false });
+      const obj = JSON.parse(await (await fh.getFile()).text());
+      if (obj && obj.data && richness(obj.data) > richness(state)) {
+        if (confirm(`本地存檔裡有更完整的資料（${richness(obj.data)} 項 > 目前 ${richness(state)} 項）。\n要復原嗎？（確定 = 復原並重新載入）`)) {
+          localStorage.setItem(KEY, JSON.stringify(obj.data));
+          localStorage.setItem('klingon.savedAt', String(obj.savedAt || Date.now()));
+          location.reload();
+          restored = true;
+        }
+      }
+    } catch (e) {}
+    if (restored) return;
+    localStorage.setItem('klingon.savedAt', String(Date.now()));
+    diskReady = true;
+    await diskWrite();
+    diskLabel();
+    toast('本地存檔已啟用，此後自動同步');
+  } catch (e) {}
+}
+async function diskInit() {
+  try {
+    const h = await idbGet('dir');
+    if (!h) { diskLabel(); return; }
+    diskDir = h;
+    const p = await h.queryPermission({ mode: 'readwrite' });
+    if (p === 'granted') {
+      diskReady = true;
+      await diskPullIfNewer();
+    } else {
+      const grant = async () => {
+        try {
+          if ((await h.requestPermission({ mode: 'readwrite' })) === 'granted') {
+            diskReady = true;
+            await diskPullIfNewer();
+            diskLabel();
+          }
+        } catch (err) {}
+        document.removeEventListener('pointerdown', grant, true);
+      };
+      document.addEventListener('pointerdown', grant, { capture: true });
+    }
+  } catch (e) {}
+  diskLabel();
+}
+$('#btn-disk').addEventListener('click', () => {
+  if (diskReady) { diskWrite(); toast('已同步到本地檔案'); }
+  else diskEnable();
+});
+
+/* ---------- 安全快照救援：目前存量明顯少於上一份快照時，提議一鍵復原 ---------- */
+function snapshotRescue() {
+  try {
+    const raw = localStorage.getItem(KEY + '.snapshot');
+    if (!raw || isTrivial(raw)) return;
+    const snap = JSON.parse(raw);
+    const n = richness(snap);
+    const cur = richness(state);
+    // 只要快照比現在豐富，就提出復原。缺口越大提示越強烈。
+    if (n > cur && confirm(
+      `偵測到一份比目前更完整的歷史快照。\n\n` +
+      `　快照：${(snap.outputs || []).length} 篇輸出、${Object.keys(snap.todos || {}).length} 天待辦、${Object.keys(snap.reflect || {}).length} 天回顧\n` +
+      `　目前：${state.outputs.length} 篇輸出、${Object.keys(state.todos || {}).length} 天待辦、${Object.keys(state.reflect || {}).length} 天回顧\n\n` +
+      `要復原到快照版本嗎？（確定 = 復原並重新載入）`
+    )) {
+      // 復原前先保住現況，避免復原後又遺失
+      localStorage.setItem('klingon.v1.beforeRescue', JSON.stringify(state));
+      localStorage.setItem(KEY, raw);
+      location.reload();
+    }
+  } catch (e) {}
+}
+
+/* ---------- 歷史版本：把自動輪替備份清單呈現出來，可一鍵還原 ---------- */
+function listBackups() {
+  try {
+    const l = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+    return Array.isArray(l) ? l : [];
+  } catch (e) { return []; }
+}
+function fmtWhen(ts) {
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function openHistory() {
+  const box = $('#hist-list');
+  if (!box) return;
+  const list = listBackups().slice().reverse();
+  const cur = JSON.stringify(state);
+  if (!list.length) {
+    box.innerHTML = '<div class="hist-empty">目前還沒有歷史版本。<br>之後每次自動儲存都會在此留下一個還原點，<br>就算內容被覆蓋也能找回。</div>';
+  } else {
+    box.innerHTML = list.map((b, i) => {
+      let m = {};
+      try { m = JSON.parse(b.data); } catch (e) { m = {}; }
+      const outs = (m.outputs || []).filter(o => !o.archived).length;
+      const td = Object.keys(m.todos || {}).length;
+      const rf = Object.keys(m.reflect || {}).length;
+      const isCur = b.data === cur;
+      return `<div class="hist-row">
+        <div class="h-when">
+          <div class="h-time">${fmtWhen(b.ts)} ${isCur ? '<span class="h-cur">目前</span>' : ''}</div>
+          <div class="h-meta">${outs} 篇輸出 · ${td} 天待辦 · ${rf} 天回顧</div>
+        </div>
+        ${isCur ? '' : `<button class="btn-plain" data-hist="${i}">還原</button>`}
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-hist]').forEach(btn => {
+      btn.onclick = () => {
+        const b = list[Number(btn.dataset.hist)];
+        if (!b) return;
+        if (!confirm(`要還原到 ${fmtWhen(b.ts)} 的版本嗎？\n\n目前版本會先自動存檔，不用擔心。`)) return;
+        try {
+          localStorage.setItem(KEY + '.beforeRescue', JSON.stringify(state));
+          localStorage.setItem(KEY, b.data);
+          location.reload();
+        } catch (e) { toast('還原失敗'); }
+      };
+    });
+  }
+  $('#hist-overlay').classList.add('show');
+}
+$('#btn-history').addEventListener('click', openHistory);
+$('#hist-close').addEventListener('click', () => $('#hist-overlay').classList.remove('show'));
+$('#hist-overlay').addEventListener('click', e => { if (e.target.id === 'hist-overlay') e.currentTarget.classList.remove('show'); });
+
+/* ---------- 啟動 ---------- */
+function init() {
+  applyCollapsed();
+  tickClock();
+  setInterval(tickClock, 15000);
+  const h = new Date().getHours();
+  setView(h < 11 ? 'morning' : h < 21 ? 'output' : 'night');
+  renderCatBar();
+  snapshotRescue();
+  diskInit();
+  nbNudgeCheck();
+}
+init();
+</script>
+</body>
+</html>
